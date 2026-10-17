@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+worker/.env
+worker/.venv
+.git
+backups

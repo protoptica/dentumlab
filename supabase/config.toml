@@ -1,0 +1,9 @@
+project_id = "dentum-procurement"
+[functions.telegram-webhook]
+verify_jwt = false
+[functions.dispatch]
+verify_jwt = false
+[functions.worker-gateway]
+verify_jwt = false
+[functions.document-access]
+verify_jwt = false
