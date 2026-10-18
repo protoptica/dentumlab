@@ -19,6 +19,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "003_material_operations.sql",
       "004_telegram_commands.sql",
       "005_archive.sql",
+      "006_telegram_interactions.sql",
     ])
       await db.exec(
         (
@@ -201,6 +202,117 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
         )
       ).rows[0].complete_extraction,
       false,
+    );
+
+    // Telegram flows use the same operations as the site, without a model.
+    const tg = 998877;
+    await db.exec(
+      `insert into telegram_user values(${tg},'${lab}','${user}') on conflict do nothing`,
+    );
+    let update = 900000;
+    const command = async (text: string, id = ++update) => {
+      await db.query("select ingest_telegram_command($1,$2,$3,$4,$5)", [
+        id,
+        tg,
+        tg,
+        text,
+        "https://example.com",
+      ]);
+      return (
+        await db.query<{ payload: any }>(
+          "select payload from job where kind='reply' order by created_at desc,id desc limit 1",
+        )
+      ).rows[0].payload;
+    };
+    const latestPayload = async () =>
+      (
+        await db.query<{ payload: any }>(
+          "select payload from job where kind='reply' and payload->>'chat_id'=$1 order by created_at desc limit 1",
+          [String(tg)],
+        )
+      ).rows[0].payload;
+    await command("/status");
+    assert.match((await latestPayload()).text, /Статус:/);
+    const mat = (
+      await db.query<{ id: string; version: number }>(
+        "select id,version from material where lab_id=$1 limit 1",
+        [lab],
+      )
+    ).rows[0];
+    await command("/material " + mat.id);
+
+    assert.match(
+      JSON.stringify((await latestPayload()).reply_markup),
+      /Изменить карточку/,
+    );
+    await command("/set " + mat.id + " name " + mat.version);
+    await command("Исправлено из Telegram");
+    assert.equal(
+      (
+        await db.query<{ name: string }>(
+          "select name from material where id=$1",
+          [mat.id],
+        )
+      ).rows[0].name,
+      "Исправлено из Telegram",
+    );
+    const current = (
+      await db.query<{ version: number }>(
+        "select version from material where id=$1",
+        [mat.id],
+      )
+    ).rows[0].version;
+    await command("/set " + mat.id + " name " + current);
+    await db.query("update material set version=version+1 where id=$1", [
+      mat.id,
+    ]);
+    await command("Устаревшее изменение");
+    assert.equal(
+      (
+        await db.query<{ name: string }>(
+          "select name from material where id=$1",
+          [mat.id],
+        )
+      ).rows[0].name,
+      "Исправлено из Telegram",
+    );
+    await command("/cancel");
+    const countBefore = (
+      await db.query<{ n: number }>("select count(*)::int n from job")
+    ).rows[0].n;
+    await command("/documents", 999999);
+    await command("/documents", 999999);
+    assert.equal(
+      (await db.query<{ n: number }>("select count(*)::int n from job")).rows[0]
+        .n,
+      countBefore + 1,
+    );
+    await assert.rejects(
+      () =>
+        db.query(
+          "select ingest_telegram_command(1000000,123456,123456,'/status','')",
+        ),
+      /Нет доступа/,
+    );
+    const pending = (
+      await db.query<{ id: string; version: number }>(
+        "select id,version from invoice where status='review' limit 1",
+      )
+    ).rows[0];
+    await command("/invoice " + pending.id);
+    assert.match(
+      JSON.stringify((await latestPayload()).reply_markup),
+      /Подтвердить счёт/,
+    );
+    await command("/confirm " + pending.id + " " + pending.version);
+    assert.equal(
+      (
+        await db.query<{ status: string }>(
+          "select status from invoice where id=$1",
+          [pending.id],
+        )
+      ).rows[0].status,
+      "confirmed",
     );
   } finally {
     await db.close();

@@ -1,4 +1,4 @@
-import { admin, json, secretEquals } from "../_shared/common.ts";
+import { admin, json, secretEquals, telegram } from "../_shared/common.ts";
 Deno.serve(async (req) => {
   if (req.method !== "POST")
     return json({ error: "Метод не поддерживается" }, 405);
@@ -11,7 +11,16 @@ Deno.serve(async (req) => {
     return json({ error: "Нет доступа" }, 403);
   try {
     const update = await req.json();
-    const m = update.message;
+    const callback = update.callback_query;
+    const m = callback
+      ? {
+          ...callback.message,
+          from: callback.from,
+          text: callback.data,
+          document: undefined,
+          photo: undefined,
+        }
+      : update.message;
     const db = admin();
     if (!m?.from?.id) return json({ ok: true });
     const { data: user } = await db
@@ -19,7 +28,14 @@ Deno.serve(async (req) => {
       .select("lab_id")
       .eq("telegram_id", m.from.id)
       .maybeSingle();
-    if (!user) return json({ ok: true });
+    if (!user) {
+      if (callback)
+        await telegram("answerCallbackQuery", {
+          callback_query_id: callback.id,
+          text: "Нет доступа",
+        }).catch(() => {});
+      return json({ ok: true });
+    }
     const f = m.document || m.photo?.at(-1);
     if (f) {
       const { error } = await db.rpc("ingest_telegram", {
@@ -43,6 +59,10 @@ Deno.serve(async (req) => {
       });
       if (error) return json({ error: "Приём временно недоступен" }, 503);
     }
+    if (callback)
+      await telegram("answerCallbackQuery", {
+        callback_query_id: callback.id,
+      }).catch(() => {});
     // A periodic dispatch invocation also retries this durable queue if this invocation ends early.
     const task = fetch(
       Deno.env.get("SUPABASE_URL") + "/functions/v1/dispatch",

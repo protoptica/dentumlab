@@ -6,7 +6,9 @@ export const admin = () =>
     { auth: { persistSession: false } },
   );
 export const cors = {
-  "Access-Control-Allow-Origin": Deno.env.get("SITE_ORIGIN") || "*",
+  "Access-Control-Allow-Origin": Deno.env.get("SITE_ORIGIN")
+    ? new URL(Deno.env.get("SITE_ORIGIN")!).origin
+    : "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
