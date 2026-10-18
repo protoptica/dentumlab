@@ -33,6 +33,7 @@ export type Invoice = {
   status: Status;
   lines: Line[];
   delivery: number;
+  discount?: number;
   vat: string;
   paid: number;
   received: boolean;
@@ -153,6 +154,7 @@ export function csv(data: Data, invoices: Invoice[]) {
         "Цена, руб.",
         "Сумма, руб.",
         "Доставка, руб.",
+        "Скидка (учтена в ценах), руб.",
         "НДС",
         "Статус",
       ],
@@ -167,6 +169,7 @@ export function csv(data: Data, invoices: Invoice[]) {
           (l.unit_price / 100).toFixed(2),
           (l.total / 100).toFixed(2),
           n === 0 ? (i.delivery / 100).toFixed(2) : "",
+          n === 0 ? ((i.discount || 0) / 100).toFixed(2) : "",
           i.vat,
           labels[i.status],
         ]),

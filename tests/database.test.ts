@@ -20,6 +20,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "004_telegram_commands.sql",
       "005_archive.sql",
       "006_telegram_interactions.sql",
+      "007_invoice_presentation.sql",
     ])
       await db.exec(
         (
@@ -49,6 +50,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       supplier_id: supplier,
       version: 0,
       delivery: 5,
+      discount: 100,
       vat: "Без НДС",
       paid: 0,
       received: false,
@@ -204,6 +206,20 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       false,
     );
 
+    assert.equal(
+      (await db.query<{ v: string }>("select telegram_money(558700) v")).rows[0]
+        .v,
+      "5587,00",
+    );
+    assert.equal(
+      (
+        await db.query<{ discount: number }>(
+          "select discount from invoice where id=$1",
+          [inv],
+        )
+      ).rows[0].discount,
+      100,
+    );
     // Telegram flows use the same operations as the site, without a model.
     const tg = 998877;
     await db.exec(

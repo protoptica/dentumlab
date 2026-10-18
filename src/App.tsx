@@ -79,6 +79,7 @@ const blankInvoice = (): Invoice => ({
   status: "review",
   lines: [blankLine()],
   delivery: 0,
+  discount: 0,
   vat: "Не указан",
   paid: 0,
   received: false,
@@ -1490,6 +1491,7 @@ function AuditDetails({
     pack: "Фасовка",
     properties: "Характеристики",
     delivery: "Доставка",
+    discount: "Скидка (учтена в ценах)",
     vat: "НДС",
     paid: "Оплачено",
     received: "Товар получен",
@@ -1507,7 +1509,7 @@ function AuditDetails({
         ([k, v]) =>
           names[k] +
           ": " +
-          (k === "paid" || k === "delivery"
+          (k === "paid" || k === "delivery" || k === "discount"
             ? money(Number(v))
             : k === "received"
               ? v
@@ -1948,6 +1950,23 @@ function InvoiceEditor({
           </div>
         </div>
         <div className="invoice-fields bottom-fields">
+          <label>
+            Скидка, ₽ (уже учтена в ценах)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={(i.discount || 0) / 100}
+              disabled={disabled}
+              onChange={(e) => {
+                try {
+                  patch({ discount: cents(e.target.value || "0") });
+                } catch {
+                  setError("Проверьте сумму скидки");
+                }
+              }}
+            />
+          </label>
           <label>
             Доставка, ₽
             <input
