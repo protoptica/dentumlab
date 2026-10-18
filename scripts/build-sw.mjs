@@ -10,6 +10,6 @@ source = source
   .replace("dentum-shell-v1", "dentum-shell-" + version)
   .replace(
     /\["\.\/",\s*"\.\/index\.html"\]/,
-    JSON.stringify(["./", "./index.html", ...assets]),
+    JSON.stringify(["./", "./index.html", "./favicon.svg", ...assets]),
   );
 await writeFile("dist/sw.js", source);

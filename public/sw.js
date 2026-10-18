@@ -24,7 +24,7 @@ self.addEventListener("fetch", (e) => {
   if (
     e.request.method !== "GET" ||
     u.origin !== self.location.origin ||
-    (!u.pathname.includes("/assets/") && e.request.mode !== "navigate")
+    (!u.pathname.includes("/assets/") && !u.pathname.endsWith("/favicon.svg") && e.request.mode !== "navigate")
   )
     return;
   e.respondWith(

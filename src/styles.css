@@ -1730,3 +1730,32 @@ dialog::backdrop {
     display: inline-flex;
   }
 }
+.account-settings {
+  grid-column: 1 / -1;
+}
+.account-settings .modal-form {
+  max-width: 620px;
+  margin: 18px 0 28px;
+}
+.account-settings h3 {
+  margin-top: 24px;
+}
+.account-list {
+  display: grid;
+  gap: 12px;
+}
+.account-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e3e8e3;
+}
+.account-row strong {
+  overflow-wrap: anywhere;
+  flex: 1 1 230px;
+}
+.account-error {
+  color: #a4362b;
+}

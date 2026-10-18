@@ -7,3 +7,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.document-access]
 verify_jwt = false
+[functions.manage-users]
+verify_jwt = false

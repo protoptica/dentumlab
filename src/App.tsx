@@ -1,3 +1,4 @@
+import AccountSettings from "./AccountSettings";
 import React, { useEffect, useRef, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import {
@@ -155,7 +156,7 @@ function App() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [search, setSearch] = useState(""),
-    [period, setPeriod] = useState("month"),
+    [period, setPeriod] = useState("all"),
     [supplier, setSupplier] = useState(""),
     [category, setCategory] = useState(""),
     [status, setStatus] = useState(""),
@@ -715,6 +716,25 @@ function App() {
           )}
           {page === "overview" && (
             <>
+              {start && !filtered.length && data.invoices.length > 0 && (
+                <div className="review-info">
+                  <p>
+                    За выбранный период счетов нет. В базе есть счета за другие
+                    даты.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setPeriod("all");
+                      setSearch("");
+                      setSupplier("");
+                      setCategory("");
+                      setStatus("");
+                    }}
+                  >
+                    Показать все счета
+                  </button>
+                </div>
+              )}
               {!data.invoices.length ? (
                 <section className="welcome panel">
                   <div className="welcome-icon">
@@ -1132,6 +1152,7 @@ function App() {
           )}
           {page === "settings" && (
             <div className="settings-grid">
+              {!api.isDemo && <AccountSettings />}
               <section className="panel settings-panel">
                 <h2>Подключения</h2>
                 <div className="setting-row">
