@@ -21,6 +21,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "005_archive.sql",
       "006_telegram_interactions.sql",
       "007_invoice_presentation.sql",
+      "008_payment_checkbox.sql",
     ])
       await db.exec(
         (
@@ -219,6 +220,26 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
         )
       ).rows[0].discount,
       100,
+    );
+    // Checkbox payment represents the full current total.
+    const paidVersion = (
+      await db.query<{ version: number }>(
+        "select version from invoice where id=$1",
+        [inv],
+      )
+    ).rows[0].version;
+    await db.query("select save_invoice($1,$2,false)", [
+      lab,
+      JSON.stringify({ ...invoice, version: paidVersion, paid: 1 }),
+    ]);
+    assert.equal(
+      (
+        await db.query<{ paid: number }>(
+          "select paid from invoice where id=$1",
+          [inv],
+        )
+      ).rows[0].paid,
+      18,
     );
     // Telegram flows use the same operations as the site, without a model.
     const tg = 998877;

@@ -144,7 +144,7 @@ export async function saveInvoice(
         manufacturer: "",
         sku: "",
         unit: l.base_unit || l.unit,
-        pack: "",
+        pack: l.factor ? `${l.factor} ${l.base_unit || l.unit}` : "",
         properties: "",
         version: 1,
       };

@@ -1676,7 +1676,13 @@ function InvoiceEditor({
 }) {
   const [i, set] = useState(invoice),
     [error, setError] = useState("");
-  const patch = (p: Partial<Invoice>) => set({ ...i, ...p });
+  const patch = (p: Partial<Invoice>) => {
+    const next = { ...i, ...p };
+    next.paid = (p.paid !== undefined ? p.paid > 0 : i.paid > 0)
+      ? total(next)
+      : 0;
+    set(next);
+  };
   const update = (id: string, p: Partial<Line>) => {
     try {
       patch({
@@ -1985,23 +1991,6 @@ function InvoiceEditor({
             />
           </label>
           <label>
-            Оплачено, ₽
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={i.paid / 100}
-              disabled={disabled}
-              onChange={(e) => {
-                try {
-                  patch({ paid: cents(e.target.value || "0") });
-                } catch {
-                  setError("Проверьте сумму оплаты");
-                }
-              }}
-            />
-          </label>
-          <label>
             Площадка
             <input
               placeholder="Например, Ozon"
@@ -2020,6 +2009,15 @@ function InvoiceEditor({
             />
           </label>
         </div>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={i.paid > 0}
+            disabled={disabled}
+            onChange={(e) => patch({ paid: e.target.checked ? total(i) : 0 })}
+          />
+          Оплачено
+        </label>
         <label className="checkbox">
           <input
             type="checkbox"
