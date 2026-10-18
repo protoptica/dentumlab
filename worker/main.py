@@ -5,6 +5,7 @@ import logging
 import os
 import threading
 import time
+from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
 from extractor import process
@@ -29,6 +30,13 @@ def run():
         stop = threading.Event()
         heartbeat = None
         try:
+            model_url = urlsplit(os.getenv('MODEL_API_URL', ''))
+            if model_url.hostname in ('127.0.0.1', 'localhost', '::1'):
+                # Do not spend queue retries while Ollama is stopped or still starting.
+                health = httpx.get(f'{model_url.scheme}://{model_url.netloc}/v1/models', timeout=10)
+                health.raise_for_status()
+                if os.getenv('MODEL_NAME') not in [m['id'] for m in health.json().get('data', [])]:
+                    raise ValueError('Локальная модель не установлена; очередь ожидает')
             job = call('claim')
             if job:
                 def renew():
