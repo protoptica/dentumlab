@@ -12,6 +12,7 @@ Deno.serve(async (req) => {
   if (!cred) return json({ error: "Нет доступа" }, 403);
   try {
     const body = await req.json();
+    if (body.action === "health") return json({ ok: true });
     if (body.action === "claim") {
       const { data, error } = await db.rpc("claim_job", {
         p_kind: "extract",

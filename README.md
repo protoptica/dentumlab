@@ -160,3 +160,7 @@ Webhook должен принимать `message` и `callback_query`. Мигр�
 Для проверенной Qwen3-14B задайте в `worker/.env`: `MODEL_API_URL=http://127.0.0.1:11434/v1/chat/completions`, `MODEL_API_KEY=ollama`, `MODEL_NAME=qwen3:14b`, `MODEL_REASONING_EFFORT=none`. Значение `ollama` — заглушка, локальный сервер не требует платного ключа. Текст счёта передаётся модели на этом компьютере; результат записывается в Supabase.
 
 На настроенном Mac обработчик запускается службой `ru.dentum.procurement-worker` после входа пользователя. Рабочая копия установлена в `~/Library/Application Support/DentumProcurement/worker`, журнал — в `~/Library/Application Support/DentumProcurement/worker.log`. После изменения исходников нужно обновить рабочую копию и перезапустить службу. Ollama должна быть запущена. Во время сна или выключения Mac задания остаются в облачной очереди. Остановка службы: `launchctl bootout gui/$(id -u)/ru.dentum.procurement-worker`. Запуск: `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ru.dentum.procurement-worker.plist`.
+
+## Компьютер администратора на Windows
+
+Инструкция: [WINDOWS.md](WINDOWS.md). Для работы с сайтом достаточно браузера. Для локального распознавания подготовлены `SETUP-WINDOWS.cmd`, `START-WORKER.cmd`, `ENABLE-AUTOSTART.cmd` и `DISABLE-AUTOSTART.cmd`. Приватный `worker-config.env` передаётся отдельно и в репозиторий не входит.
