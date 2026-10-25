@@ -1,3 +1,4 @@
+import { loginError } from "./auth-errors";
 import AccountSettings from "./AccountSettings";
 import React, { useEffect, useRef, useState } from "react";
 import { Session } from "@supabase/supabase-js";
@@ -501,10 +502,10 @@ function App() {
             const f = new FormData(e.currentTarget);
             void act(async () => {
               const { error } = await api.supabase!.auth.signInWithPassword({
-                email: String(f.get("email")),
+                email: String(f.get("email")).trim(),
                 password: String(f.get("password")),
               });
-              if (error) throw Error("Проверьте почту и пароль");
+              if (error) throw Error(loginError(error));
             });
           }}
         >
@@ -522,7 +523,7 @@ function App() {
             />
           </label>
           <button className="primary" disabled={busy}>
-            Войти <ArrowRight size={16} />
+            {busy ? "Входим…" : "Войти"} <ArrowRight size={16} />
           </button>
         </form>
         {error && (

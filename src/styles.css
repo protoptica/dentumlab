@@ -1284,6 +1284,17 @@ dialog::backdrop {
   color: #8a9981;
   font-size: 12px;
 }
+.login > p.error-text {
+  color: #a11b1b;
+  background: #fff0ee;
+  border: 1px solid #e6a29a;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
 .login form {
   display: grid;
   gap: 20px;
