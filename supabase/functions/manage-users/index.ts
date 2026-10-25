@@ -60,11 +60,11 @@ Deno.serve(async (req) => {
         password = String(b.password || "");
       if (
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-        password.length < 12 ||
+        password.length < 8 ||
         password.length > 128
       )
         return json(
-          { error: "Укажите email и пароль от 12 до 128 символов" },
+          { error: "Укажите email и пароль от 8 до 128 символов" },
           400,
         );
       if (!["admin", "editor"].includes(b.role))
@@ -132,9 +132,9 @@ Deno.serve(async (req) => {
       await audit("Отключён доступ аккаунта", b.user_id, {});
     } else {
       const password = String(b.password || "");
-      if (password.length < 12 || password.length > 128)
+      if (password.length < 8 || password.length > 128)
         return json(
-          { error: "Пароль должен содержать от 12 до 128 символов" },
+          { error: "Пароль должен содержать от 8 до 128 символов" },
           400,
         );
       // Passwords are global to Auth: never reset an account shared with another lab.

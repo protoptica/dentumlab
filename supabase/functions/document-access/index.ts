@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     const path = crypto.randomUUID() + "." + ext;
     const { error } = await db.storage
       .from("previews")
-      .upload(path, file, { contentType: type });
+      .upload(path, await file.arrayBuffer(), { contentType: type });
     if (error) throw Error("Не удалось подготовить оригинал");
     const { data, error: err } = await db.storage
       .from("previews")

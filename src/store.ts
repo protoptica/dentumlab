@@ -249,7 +249,14 @@ export async function original(documentId: string): Promise<string> {
   const { data, error } = await supabase.functions.invoke("document-access", {
     body: { document_id: documentId },
   });
-  if (error) throw Error("Не удалось получить оригинал");
+  if (error) {
+    let message = "Не удалось получить оригинал";
+    try {
+      const response = await error.context.json();
+      if (typeof response.error === "string") message = response.error;
+    } catch {}
+    throw Error(message);
+  }
   if (data.error) throw Error(data.error);
   return data.url;
 }

@@ -72,7 +72,7 @@ export default function AccountSettings() {
       });
       if (result.error)
         throw Error(
-          "Не удалось сменить пароль. Используйте другой пароль от 12 символов.",
+          "Не удалось сменить пароль. Используйте другой пароль от 8 символов.",
         );
       form.reset();
       setMessage("Ваш пароль изменён");
@@ -104,7 +104,7 @@ export default function AccountSettings() {
           <input
             name="password"
             type="password"
-            minLength={12}
+            minLength={8}
             maxLength={128}
             autoComplete="new-password"
             required
@@ -116,7 +116,7 @@ export default function AccountSettings() {
           <input
             name="repeat"
             type="password"
-            minLength={12}
+            minLength={8}
             maxLength={128}
             autoComplete="new-password"
             required
@@ -220,7 +220,7 @@ export default function AccountSettings() {
                 aria-label="Новый пароль сотрудника"
                 type="password"
                 autoComplete="new-password"
-                minLength={12}
+                minLength={8}
                 maxLength={128}
                 required
                 disabled={busy}
@@ -268,12 +268,12 @@ export default function AccountSettings() {
               />
             </label>
             <label>
-              Пароль — минимум 12 символов
+              Пароль — минимум 8 символов
               <input
                 name="password"
                 type={show ? "text" : "password"}
                 autoComplete="new-password"
-                minLength={12}
+                minLength={8}
                 maxLength={128}
                 required
                 disabled={busy}
