@@ -22,6 +22,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "006_telegram_interactions.sql",
       "007_invoice_presentation.sql",
       "008_payment_checkbox.sql",
+      "009_declined_invoices.sql",
     ])
       await db.exec(
         (
@@ -350,6 +351,107 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
         )
       ).rows[0].status,
       "confirmed",
+    );
+    // Rejection is versioned, scoped to membership, and cannot be undone by stale controls.
+    await command("/invoice " + pending.id);
+    const keyboard = JSON.stringify((await latestPayload()).reply_markup);
+    assert.match(keyboard, /Отклонить счёт/);
+    assert.match(keyboard, /✅ Оплачено/);
+    assert.match(keyboard, /📦 Получено/);
+    assert.match(keyboard, /https:\/\/example.com#\/review/);
+    await assert.rejects(
+      () =>
+        db.query("select decline_invoice($1,$2,$3)", [
+          lab,
+          pending.id,
+          pending.version,
+        ]),
+      /уже изменён/,
+    );
+    await db.exec("set request.jwt.claim.sub='" + other + "'");
+    await assert.rejects(
+      () =>
+        db.query("select decline_invoice($1,$2,$3)", [
+          lab,
+          pending.id,
+          pending.version + 1,
+        ]),
+      /Нет доступа/,
+    );
+    await db.exec("set request.jwt.claim.sub='" + user + "'");
+    await command("/decline " + pending.id + " " + (pending.version + 1));
+    const rejected = (
+      await db.query<any>(
+        "select i.*,d.sha256,d.status document_status from invoice i join document d on d.id=i.document_id where i.id=$1",
+        [pending.id],
+      )
+    ).rows[0];
+    assert.equal(rejected.status, "declined");
+    assert.equal(rejected.document_status, "declined");
+    assert.equal(rejected.sha256, "a".repeat(64));
+    assert.equal(
+      (
+        await db.query(
+          "select id from invoice where status='confirmed' and id=$1",
+          [pending.id],
+        )
+      ).rows.length,
+      0,
+    );
+    await command("/invoice " + pending.id);
+    assert.doesNotMatch(
+      JSON.stringify((await latestPayload()).reply_markup),
+      /\/confirm |\/paid |\/received |\/decline /,
+    );
+    await assert.rejects(
+      () =>
+        db.query("update invoice set status='review' where id=$1", [
+          pending.id,
+        ]),
+      /отклонён/,
+    );
+    // Both web and Telegram uploads go through this archive completion, before the model runs.
+    const duplicate = crypto.randomUUID(),
+      archiveJob = crypto.randomUUID(),
+      lease = crypto.randomUUID();
+    await db.query(
+      "insert into document(id,lab_id,name,source) values($1,$2,'duplicate.pdf','web')",
+      [duplicate, lab],
+    );
+    await db.query(
+      "insert into job(id,lab_id,document_id,kind,state,lease_token,lease_until) values($1,$2,$3,'archive','running',$4,now()+interval '5 minutes')",
+      [archiveJob, lab, duplicate, lease],
+    );
+    await db.query("select complete_archive_checked($1,$2,'file',-1,1,$3)", [
+      archiveJob,
+      lease,
+      "a".repeat(64),
+    ]);
+    assert.equal(
+      (
+        await db.query<any>(
+          "select status,archive_status from document where id=$1",
+          [duplicate],
+        )
+      ).rows[0].status,
+      "declined",
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select id from job where document_id=$1 and kind='extract'",
+          [duplicate],
+        )
+      ).rows.length,
+      0,
+    );
+    assert.equal(
+      (
+        await db.query("select id from invoice where document_id=$1", [
+          duplicate,
+        ])
+      ).rows.length,
+      0,
     );
   } finally {
     await db.close();

@@ -34,6 +34,24 @@ Deno.serve(async (req) => {
       if (e) throw Error("Документ недоступен");
       const archive = Deno.env.get("TELEGRAM_ARCHIVE_CHAT_ID");
       if (!archive) throw Error("Не настроен архивный чат");
+      // Hash before queuing recognition, including uploads from the website.
+      let source: Blob;
+      if (d.file_id) source = await telegramFile(d.file_id);
+      else {
+        const downloaded = await db.storage
+          .from("incoming")
+          .download(d.storage_path);
+        if (downloaded.error || !downloaded.data)
+          throw Error("Временный файл недоступен");
+        source = downloaded.data;
+      }
+      if (source.size > 20 * 1024 * 1024) throw Error("Файл больше 20 МБ");
+      const hash = Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", await source.arrayBuffer()),
+        ),
+        (b) => b.toString(16).padStart(2, "0"),
+      ).join("");
       let archived;
       if (d.file_id) {
         try {
@@ -48,7 +66,7 @@ Deno.serve(async (req) => {
             document: { file_id: d.file_id },
           };
         } catch {
-          const file = await telegramFile(d.file_id);
+          const file = source;
           const body = new FormData();
           body.append("chat_id", archive);
           body.append("document", file, d.name);
@@ -68,7 +86,8 @@ Deno.serve(async (req) => {
       const fileId =
         archived.document?.file_id || archived.photo?.at(-1)?.file_id;
       if (!fileId) throw Error("Архив не вернул идентификатор файла");
-      const result = await db.rpc("complete_archive", {
+      const result = await db.rpc("complete_archive_checked", {
+        p_hash: hash,
         p_job: j.id,
         p_token: j.lease_token,
         p_file: fileId,

@@ -411,3 +411,33 @@ export async function archiveInvoice(data: Data, i: Invoice) {
   await cache(next);
   return next;
 }
+
+export async function declineInvoice(data: Data, i: Invoice) {
+  if (supabase) {
+    const { error } = await supabase.rpc("decline_invoice", {
+      p_lab: labId,
+      p_id: i.id,
+      p_version: i.version,
+    });
+    if (error) throw Error(error.message);
+    return load();
+  }
+  const next = structuredClone(data);
+  const row = next.invoices.find((x) => x.id === i.id);
+  if (!row || row.version !== i.version) throw Error("Счёт уже изменён");
+  const before = structuredClone(row);
+  row.status = "declined";
+  row.version++;
+  const doc = next.documents.find((d) => d.id === row.document_id);
+  if (doc) doc.status = "declined";
+  next.audit.unshift({
+    id: uid(),
+    created_at: new Date().toISOString(),
+    action: "Счёт отклонён",
+    entity_id: i.id,
+    before,
+    after: structuredClone(row),
+  });
+  await cache(next);
+  return next;
+}

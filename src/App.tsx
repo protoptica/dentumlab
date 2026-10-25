@@ -54,6 +54,19 @@ const pages: { id: Page; label: string; icon: typeof Boxes }[] = [
   { id: "suppliers", label: "Поставщики", icon: Building2 },
   { id: "review", label: "Проверка документов", icon: ScanLine },
 ];
+function pageFromHash(): Page {
+  const value = location.hash.replace(/^#\/?/, "");
+  return [
+    "overview",
+    "invoices",
+    "materials",
+    "suppliers",
+    "review",
+    "settings",
+  ].includes(value)
+    ? (value as Page)
+    : "overview";
+}
 const formatDate = (s: string) =>
   new Date(s + "T12:00:00").toLocaleDateString("ru-RU", {
     day: "2-digit",
@@ -148,13 +161,14 @@ function Modal({
 }
 function App() {
   const [data, setData] = useState<Data>(emptyData),
-    [page, setPage] = useState<Page>("overview"),
+    [page, setPage] = useState<Page>(pageFromHash),
     [session, setSession] = useState<Session | null>(null),
     [ready, setReady] = useState(api.isDemo),
     [loading, setLoading] = useState(true),
     [online, setOnline] = useState(navigator.onLine),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
+    [updateAvailable, setUpdateAvailable] = useState(false),
     [search, setSearch] = useState(""),
     [period, setPeriod] = useState("all"),
     [supplier, setSupplier] = useState(""),
@@ -267,6 +281,7 @@ function App() {
     }
   };
   const navigate = (p: Page) => {
+    location.hash = "/" + p;
     setPage(p);
     setSearch("");
     setStatus("");
@@ -274,6 +289,25 @@ function App() {
     setSupplier("");
     setOriginalUrl("");
   };
+  useEffect(() => {
+    const change = () => {
+      setPage(pageFromHash());
+      setSearch("");
+      setStatus("");
+      setCategory("");
+      setSupplier("");
+      setOriginalUrl("");
+      setEditing(null);
+    };
+    if (!location.hash) history.replaceState(null, "", "#/" + pageFromHash());
+    window.addEventListener("hashchange", change);
+    return () => window.removeEventListener("hashchange", change);
+  }, []);
+  useEffect(() => {
+    const update = () => setUpdateAvailable(true);
+    window.addEventListener("dentum-update", update);
+    return () => window.removeEventListener("dentum-update", update);
+  }, []);
   const pending =
     data.invoices.filter((i) => i.status === "review").length +
     data.documents.filter((d) => d.status === "error").length;
@@ -1298,6 +1332,13 @@ function App() {
           wide
         >
           <InvoiceEditor
+            onDecline={() =>
+              void act(async () => {
+                setData(await api.declineInvoice(data, editing));
+                setEditing(null);
+                setNotice("Счёт отклонён. Оригинал сохранён в архиве");
+              })
+            }
             onArchive={() =>
               void act(async () => {
                 setData(await api.archiveInvoice(data, editing));
@@ -1478,7 +1519,15 @@ function App() {
           </div>
         </Modal>
       )}
-      {notice && (
+      {updateAvailable && (
+        <div role="status" className="toast">
+          Доступна новая версия. Сохраните изменения.
+          <button className="secondary" onClick={() => location.reload()}>
+            Обновить сайт
+          </button>
+        </div>
+      )}
+      {!updateAvailable && notice && (
         <div role="status" className="toast">
           <Check size={18} />
           {notice}
@@ -1685,6 +1734,7 @@ function InvoiceEditor({
   onOriginal,
   originalUrl,
   onArchive,
+  onDecline,
 }: {
   invoice: Invoice;
   data: Data;
@@ -1693,6 +1743,7 @@ function InvoiceEditor({
   disabled: boolean;
   onOriginal: () => void;
   onArchive: () => void;
+  onDecline: () => void;
   originalUrl: string;
 }) {
   const [i, set] = useState(invoice),
@@ -1789,16 +1840,18 @@ function InvoiceEditor({
           </p>
         )}
         <div className="original-toolbar">
-          {i.version > 0 && i.status !== "archived" && (
-            <button
-              type="button"
-              className="text-button"
-              disabled={busy || disabled}
-              onClick={onArchive}
-            >
-              Архивировать счёт
-            </button>
-          )}
+          {i.version > 0 &&
+            i.status !== "archived" &&
+            i.status !== "declined" && (
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy || disabled}
+                onClick={onArchive}
+              >
+                Архивировать счёт
+              </button>
+            )}
           <Badge status={i.status} />
           <button
             type="button"
@@ -2072,12 +2125,27 @@ function InvoiceEditor({
           <button
             type="button"
             className="secondary"
-            disabled={busy || disabled}
+            disabled={busy || disabled || i.status === "declined"}
             onClick={() => onSave(i, false)}
           >
             Сохранить
           </button>
-          <button className="primary" disabled={busy || disabled}>
+          {i.version > 0 &&
+            i.status !== "declined" &&
+            i.status !== "archived" && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy || disabled}
+                onClick={onDecline}
+              >
+                Отклонить счёт
+              </button>
+            )}
+          <button
+            className="primary"
+            disabled={busy || disabled || i.status === "declined"}
+          >
             <Check size={17} />
             {i.status === "confirmed"
               ? "Сохранить исправления"

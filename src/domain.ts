@@ -1,5 +1,11 @@
 export type Status =
-  "received" | "processing" | "review" | "confirmed" | "error" | "archived";
+  | "received"
+  | "processing"
+  | "review"
+  | "confirmed"
+  | "error"
+  | "archived"
+  | "declined";
 export type Material = {
   id: string;
   name: string;
@@ -75,6 +81,7 @@ export const labels: Record<Status, string> = {
   confirmed: "Подтверждён",
   error: "Ошибка",
   archived: "Архивирован",
+  declined: "Отклонён",
 };
 export const money = (v: number) =>
   new Intl.NumberFormat("ru-RU", {
