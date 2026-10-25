@@ -175,6 +175,8 @@ function App() {
     [supplier, setSupplier] = useState(""),
     [category, setCategory] = useState(""),
     [status, setStatus] = useState(""),
+    [payment, setPayment] = useState(""),
+    [receipt, setReceipt] = useState(""),
     [sort, setSort] = useState("date"),
     [editing, setEditing] = useState<Invoice | null>(null),
     [material, setMaterial] = useState<Material | null>(null),
@@ -286,6 +288,8 @@ function App() {
     setPage(p);
     setSearch("");
     setStatus("");
+    setPayment("");
+    setReceipt("");
     setCategory("");
     setSupplier("");
     setOriginalUrl("");
@@ -295,6 +299,8 @@ function App() {
       setPage(pageFromHash());
       setSearch("");
       setStatus("");
+      setPayment("");
+      setReceipt("");
       setCategory("");
       setSupplier("");
       setOriginalUrl("");
@@ -343,6 +349,12 @@ function App() {
         (!supplier || i.supplier_id === supplier) &&
         (!category || i.lines.some((l) => l.category === category)) &&
         (!status || i.status === status) &&
+        (page !== "invoices" ||
+          !payment ||
+          i.paid > 0 === (payment === "paid")) &&
+        (page !== "invoices" ||
+          !receipt ||
+          i.received === (receipt === "received")) &&
         (!search ||
           [
             i.number,
@@ -485,6 +497,28 @@ function App() {
             </option>
           ))}
         </select>
+      )}
+      {page === "invoices" && (
+        <>
+          <select
+            aria-label="Статус оплаты"
+            value={payment}
+            onChange={(e) => setPayment(e.target.value)}
+          >
+            <option value="">Любая оплата</option>
+            <option value="paid">Оплачено</option>
+            <option value="unpaid">Не оплачено</option>
+          </select>
+          <select
+            aria-label="Статус получения"
+            value={receipt}
+            onChange={(e) => setReceipt(e.target.value)}
+          >
+            <option value="">Любое получение</option>
+            <option value="received">Получено</option>
+            <option value="not_received">Не получено</option>
+          </select>
+        </>
       )}
     </div>
   );
@@ -770,6 +804,8 @@ function App() {
                       setSupplier("");
                       setCategory("");
                       setStatus("");
+                      setPayment("");
+                      setReceipt("");
                     }}
                   >
                     Показать все счета
