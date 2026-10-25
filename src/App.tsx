@@ -281,7 +281,7 @@ function App() {
     }
   };
   const navigate = (p: Page) => {
-    location.hash = "/" + p;
+    if (location.hash !== "#/" + p) history.pushState(null, "", "#/" + p);
     setPage(p);
     setSearch("");
     setStatus("");
@@ -301,7 +301,11 @@ function App() {
     };
     if (!location.hash) history.replaceState(null, "", "#/" + pageFromHash());
     window.addEventListener("hashchange", change);
-    return () => window.removeEventListener("hashchange", change);
+    window.addEventListener("popstate", change);
+    return () => {
+      window.removeEventListener("hashchange", change);
+      window.removeEventListener("popstate", change);
+    };
   }, []);
   useEffect(() => {
     const update = () => setUpdateAvailable(true);
@@ -534,7 +538,7 @@ function App() {
       <aside className="sidebar">
         <a
           className="brand"
-          href="#"
+          href="#/overview"
           onClick={(e) => {
             e.preventDefault();
             navigate("overview");
@@ -556,15 +560,16 @@ function App() {
         <div className="nav-label">УЧЁТ</div>
         <nav>
           {pages.map(({ id, label, icon: Icon }) => (
-            <button
+            <a
               key={id}
               className={page === id ? "active" : ""}
-              onClick={() => navigate(id)}
+              href={"#/" + id}
+              aria-current={page === id ? "page" : undefined}
             >
               <Icon size={19} />
               <span>{label}</span>
               {id === "review" && pending > 0 && <b>{pending}</b>}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -581,13 +586,14 @@ function App() {
                 : "Общая база лаборатории"}
             </small>
           </div>
-          <button
+          <a
             className={"settings-nav " + (page === "settings" ? "active" : "")}
-            onClick={() => navigate("settings")}
+            href="#/settings"
+            aria-current={page === "settings" ? "page" : undefined}
           >
             <Settings size={19} />
             Настройки
-          </button>
+          </a>
           <div className="user">
             <span className="user-avatar">ДЛ</span>
             <div>
