@@ -25,6 +25,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "009_declined_invoices.sql",
       "010_discount_calculation.sql",
       "011_telegram_live_cards.sql",
+      "012_restore_declined.sql",
     ])
       await db.exec(
         (
@@ -403,7 +404,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
     await command("/invoice " + pending.id);
     assert.doesNotMatch(
       JSON.stringify((await latestPayload()).reply_markup),
-      /\/confirm |\/paid |\/received |\/decline /,
+      /\/paid |\/received |\/decline /,
     );
     await assert.rejects(
       () =>
@@ -510,6 +511,34 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
         )
       ).rows[0].discount_amount,
       1,
+    );
+    // Declining blocks payment/receipt, but confirmation can undo an accidental decline.
+    await command(`/decline ${cardId} ${card.version}`);
+    const declined = (
+      await db.query<any>("select * from invoice where id=$1", [cardId])
+    ).rows[0];
+    for (const action of ["paid", "received"]) {
+      await command(`/${action} ${cardId} ${declined.version} 0`);
+      assert.match(
+        (await latestPayload()).text,
+        /Счёт отклонён.*Сначала подтвердите/,
+      );
+    }
+    assert.deepEqual(
+      (await db.query<any>("select * from invoice where id=$1", [cardId]))
+        .rows[0],
+      declined,
+    );
+    await command(`/invoice ${cardId}`);
+    assert.match(
+      JSON.stringify((await latestPayload()).reply_markup),
+      /\/confirm /,
+    );
+    await command(`/confirm ${cardId} ${card.version}`);
+    assert.equal(
+      (await db.query<any>("select status from invoice where id=$1", [cardId]))
+        .rows[0].status,
+      "confirmed",
     );
     const conflictId = crypto.randomUUID();
     const conflictLines = invoice.lines.map((l) => ({

@@ -138,11 +138,7 @@ function Modal({
     ref.current?.showModal();
   }, []);
   return (
-    <dialog
-      ref={ref}
-      className={wide ? "wide" : ""}
-      onCancel={(e) => e.preventDefault()}
-    >
+    <dialog ref={ref} className={wide ? "wide" : ""} onCancel={close}>
       <div className="modal-heading">
         <h2>{title}</h2>
         <button aria-label="Закрыть" className="icon-button" onClick={close}>
