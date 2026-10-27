@@ -25,6 +25,8 @@ export type Line = {
   quantity: string;
   unit: string;
   unit_price: number;
+  base_total?: number | null;
+  discount_amount?: number;
   total: number;
   factor: string;
   base_unit?: string;
@@ -40,6 +42,7 @@ export type Invoice = {
   lines: Line[];
   delivery: number;
   discount?: number;
+  discount_percent?: number | null;
   vat: string;
   paid: number;
   received: boolean;
@@ -138,7 +141,13 @@ export function validateInvoice(i: Invoice) {
       );
     if (l.factor && decimal(l.factor, 3) <= 0n)
       throw Error("Коэффициент должен быть больше нуля");
-    if (l.total !== lineTotal(l.quantity, l.unit_price))
+    if (
+      l.base_total != null
+        ? l.total !== l.base_total - (l.discount_amount || 0) ||
+          (l.discount_amount || 0) < 0 ||
+          l.total < 0
+        : l.total !== lineTotal(l.quantity, l.unit_price)
+    )
       throw Error("Сумма строки не совпадает с количеством и ценой");
   }
   if (i.paid > total(i)) throw Error("Оплата превышает сумму счёта");
@@ -161,7 +170,7 @@ export function csv(data: Data, invoices: Invoice[]) {
         "Цена, руб.",
         "Сумма, руб.",
         "Доставка, руб.",
-        "Скидка (учтена в ценах), руб.",
+        "Скидка, руб.",
         "НДС",
         "Статус",
       ],

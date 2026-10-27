@@ -21,7 +21,23 @@ Deno.serve(async (req) => {
     if (error || !j) continue;
     try {
       if (kind === "reply") {
-        await telegram("sendMessage", j.payload);
+        if (j.payload.message_id) {
+          const response = await fetch(
+            `https://api.telegram.org/bot${Deno.env.get("TELEGRAM_BOT_TOKEN")}/editMessageText`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(j.payload),
+              signal: AbortSignal.timeout(45000),
+            },
+          );
+          const result = await response.json();
+          if (
+            !result.ok &&
+            !String(result.description).includes("message is not modified")
+          )
+            throw Error("Не удалось обновить карточку Telegram");
+        } else await telegram("sendMessage", j.payload);
         await db.rpc("finish_job", { p_id: j.id, p_token: j.lease_token });
         done++;
         continue;

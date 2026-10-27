@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
         p_chat: m.chat.id,
         p_text: String(m.text || ""),
         p_site: Deno.env.get("SITE_ORIGIN") || "",
+        p_message: callback ? m.message_id : null,
       });
       if (error) return json({ error: "Приём временно недоступен" }, 503);
     }

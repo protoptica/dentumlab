@@ -23,6 +23,8 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "007_invoice_presentation.sql",
       "008_payment_checkbox.sql",
       "009_declined_invoices.sql",
+      "010_discount_calculation.sql",
+      "011_telegram_live_cards.sql",
     ])
       await db.exec(
         (
@@ -452,6 +454,95 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
         ])
       ).rows.length,
       0,
+    );
+
+    // One displayed card supports independent flags and confirmation, even with its original version.
+    await db.exec(`reset role;set request.jwt.claim.sub='${user}';`);
+    const cardId = crypto.randomUUID();
+    await db.query("select save_invoice($1,$2,false)", [
+      lab,
+      JSON.stringify({
+        ...invoice,
+        id: cardId,
+        version: 0,
+        discount: 1,
+        lines: [
+          {
+            ...invoice.lines[0],
+            id: crypto.randomUUID(),
+            quantity: "3",
+            unit_price: 33,
+            total: 99,
+            base_total: 100,
+            discount_amount: 1,
+          },
+        ],
+      }),
+    ]);
+    for (const action of ["paid", "received", "confirm"]) {
+      await db.query("select ingest_telegram_command($1,$2,$3,$4,$5,$6)", [
+        ++update,
+        tg,
+        tg,
+        `/${action} ${cardId} 1 1`,
+        "https://example.com",
+        777,
+      ]);
+    }
+    const card = (
+      await db.query<any>("select * from invoice where id=$1", [cardId])
+    ).rows[0];
+    assert.equal(card.status, "confirmed");
+    assert.equal(card.received, true);
+    assert.equal(card.paid, 104);
+    const replies = (
+      await db.query<any>(
+        "select payload from job where payload->>'message_id'='777'",
+      )
+    ).rows;
+    assert.equal(replies.length, 3);
+    assert.ok(replies.every((r) => r.payload.text.includes("Счёт №")));
+    assert.equal(
+      (
+        await db.query<any>(
+          "select base_total,discount_amount from invoice_line where invoice_id=$1",
+          [cardId],
+        )
+      ).rows[0].discount_amount,
+      1,
+    );
+    const conflictId = crypto.randomUUID();
+    const conflictLines = invoice.lines.map((l) => ({
+      ...l,
+      id: crypto.randomUUID(),
+    }));
+    await db.query("select save_invoice($1,$2,false)", [
+      lab,
+      JSON.stringify({
+        ...invoice,
+        id: conflictId,
+        version: 0,
+        lines: conflictLines,
+      }),
+    ]);
+    await db.query("select save_invoice($1,$2,false)", [
+      lab,
+      JSON.stringify({
+        ...invoice,
+        id: conflictId,
+        version: 1,
+        delivery: 10,
+        lines: conflictLines,
+      }),
+    ]);
+    await command(`/confirm ${conflictId} 1`);
+    assert.equal(
+      (
+        await db.query<any>("select status from invoice where id=$1", [
+          conflictId,
+        ])
+      ).rows[0].status,
+      "review",
     );
   } finally {
     await db.close();

@@ -84,6 +84,59 @@ def fill_packaging(line: dict) -> dict:
         line['base_unit'] = ''
     return line
 
+def source_amounts(text: str) -> list[int]:
+    return [int(Decimal(x.replace(' ', '').replace('\u00a0', '').replace(',', '.')) * 100)
+            for x in re.findall(r'(?<![\d.,])\d[\d \u00a0]*[.,]\d{2}(?!\d)', text)]
+
+def reconcile_invoice(result: dict, text: str) -> dict:
+    """Use explicit document totals, never guess whether to subtract twice."""
+    if result.get('kind') == 'payment':
+        return result
+    rows = text.splitlines()
+    shipping = [l for l in result.get('lines', []) if re.search(r'доставк|shipping|delivery', l.get('name', ''), re.I)]
+    result['lines'] = [l for l in result.get('lines', []) if l not in shipping]
+    shipping_rows = [source_amounts(row) for row in rows if re.match(r'^\s*\d+\s+', row) and re.search(r'услуги доставки|доставка', row, re.I)]
+    shipping_rows = [a for a in shipping_rows if a]
+    if shipping_rows:
+        result['delivery'] = sum(a[-1] for a in shipping_rows)
+    elif shipping:
+        # The same delivery may already have been placed in the dedicated field.
+        shipping_total = sum(l['total'] for l in shipping)
+        if result.get('delivery', 0) not in (0, shipping_total):
+            raise ValueError('Доставка распознана неоднозначно; нужна проверка')
+        result['delivery'] = shipping_total
+    discounts = re.findall(r'^Скидка\s*:\s*([\d \u00a0]+[,.]\d{2})', text, flags=re.I | re.M)
+    if discounts:
+        result['discount'] = source_amounts(discounts[-1])[0]
+    elif re.search(r'Сумма без.*Скидка.*Сумма НДС', text):
+        summary = [source_amounts(row) for row in rows if re.match(r'^Итого:', row)]
+        if summary and len(summary[-1]) == 4:
+            result['discount'] = summary[-1][1]
+    final_rows = [row for row in rows if re.search(r'Итого с НДС|Всего к оплате|Всего наименований.*на сумму', row, re.I)]
+    if not final_rows:
+        final_rows = [row for row in rows if re.match(r'^Итого\s*:', row, re.I)]
+    totals = [source_amounts(row) for row in final_rows]
+    totals = [a[-1] for a in totals if a]
+    if totals:
+        expected = totals[-1]
+        actual = sum(l['total'] for l in result['lines']) + result.get('delivery', 0)
+        discount = result.get('discount', 0)
+        goods = sum(l['total'] for l in result['lines'])
+        if actual != expected and actual - expected == discount and 0 < discount <= goods:
+            allocated = [discount*l['total']//goods for l in result['lines']]
+            order = sorted(range(len(allocated)), key=lambda n: -(discount*result['lines'][n]['total']%goods))
+            for n in order[:discount-sum(allocated)]:
+                allocated[n] += 1
+            for line, amount in zip(result['lines'], allocated):
+                line['base_total'] = line['total']
+                line['discount_amount'] = amount
+                line['total'] -= amount
+                line['unit_price'] = int((Decimal(line['total'])/Decimal(str(line['quantity']))).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+            actual = sum(l['total'] for l in result['lines']) + result.get('delivery', 0)
+        if actual != expected:
+            raise ValueError('Итог распознавания не совпадает с итогом документа; нужна проверка разбора')
+    return result
+
 def validate(result: dict) -> dict:
     from datetime import date
     if result.get('kind') == 'payment':
@@ -103,7 +156,7 @@ def validate(result: dict) -> dict:
             if type(line[key]) is not int or not 0 <= line[key] <= 10**12:
                 raise ValueError('Суммы должны быть целыми копейками')
         expected = int((quantity * line['unit_price']).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
-        if expected != line['total']:
+        if (line['base_total'] - line.get('discount_amount', 0) if line.get('base_total') is not None else expected) != line['total']:
             raise ValueError('Сумма строки не совпадает с количеством и ценой; нужна проверка разбора')
         if line.get('factor'):
             factor = Decimal(str(line['factor']))
@@ -114,18 +167,9 @@ def validate(result: dict) -> dict:
 def process(content: bytes, provider: Provider | None = None) -> dict:
     raw = extract_text(content)
     result = (provider or OpenAICompatibleProvider()).parse(raw['text'])
+    result = reconcile_invoice(result, raw['text'])
     for line in result.get('lines', []):
         fill_packaging(line)
     result = validate(result)
-    if result.get('kind') != 'payment':
-        discounts = re.findall(r'^Скидка\s*:\s*([\d \u00a0]+[,.]\d{2})', raw['text'], flags=re.I | re.M)
-        if discounts:
-            result['discount'] = int(Decimal(discounts[-1].replace(' ', '').replace('\u00a0', '').replace(',', '.')) * 100)
-        totals = re.findall(r'(?:Всего к оплате|Итого)\s*:\s*([\d \u00a0]+[,.]\d{2})', raw['text'], flags=re.I)
-        if totals:
-            expected = int(Decimal(totals[-1].replace(' ', '').replace('\u00a0', '').replace(',', '.')) * 100)
-            actual = sum(line['total'] for line in result['lines']) + result.get('delivery', 0)
-            if expected != actual:
-                raise ValueError('Итог распознавания не совпадает с итогом документа; нужна проверка разбора')
     result['raw'] = raw
     return result

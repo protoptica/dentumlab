@@ -1,3 +1,4 @@
+import { applyDiscount, prepareDiscount, basePrice } from "./discount";
 import { loginError } from "./auth-errors";
 import AccountSettings from "./AccountSettings";
 import React, { useEffect, useRef, useState } from "react";
@@ -140,10 +141,7 @@ function Modal({
     <dialog
       ref={ref}
       className={wide ? "wide" : ""}
-      onCancel={close}
-      onClick={(e) => {
-        if (e.target === ref.current) close();
-      }}
+      onCancel={(e) => e.preventDefault()}
     >
       <div className="modal-heading">
         <h2>{title}</h2>
@@ -1789,10 +1787,22 @@ function InvoiceEditor({
   onDecline: () => void;
   originalUrl: string;
 }) {
-  const [i, set] = useState(invoice),
+  const [i, set] = useState(() => prepareDiscount(invoice)),
     [error, setError] = useState("");
   const patch = (p: Partial<Invoice>) => {
-    const next = { ...i, ...p };
+    let next = { ...i, ...p };
+    try {
+      if (p.lines)
+        next = applyDiscount(
+          next,
+          next.discount || 0,
+          next.discount_percent ?? null,
+        );
+    } catch (e) {
+      setError((e as Error).message);
+      return;
+    }
+    setError("");
     next.paid = (p.paid !== undefined ? p.paid > 0 : i.paid > 0)
       ? total(next)
       : 0;
@@ -1800,14 +1810,27 @@ function InvoiceEditor({
   };
   const update = (id: string, p: Partial<Line>) => {
     try {
-      patch({
-        lines: i.lines.map((l) => {
-          if (l.id !== id) return l;
-          const next = { ...l, ...p };
-          next.total = lineTotal(next.quantity, next.unit_price);
-          return next;
-        }),
-      });
+      patch(
+        applyDiscount(
+          {
+            ...i,
+            lines: i.lines.map((l) => {
+              if (l.id !== id) return l;
+              const next = { ...l, ...p };
+              if (p.unit_price !== undefined || p.quantity !== undefined) {
+                next.base_total = lineTotal(
+                  next.quantity,
+                  p.unit_price ?? basePrice(l),
+                );
+              }
+              next.total = next.base_total! - (next.discount_amount || 0);
+              return next;
+            }),
+          },
+          i.discount || 0,
+          i.discount_percent ?? null,
+        ),
+      );
       setError("");
     } catch {
       setError(
@@ -1915,8 +1938,8 @@ function InvoiceEditor({
                   <tr>
                     <th>Наименование / материал</th>
                     <th>Кол-во</th>
-                    <th>Цена после скидки, ₽</th>
-                    <th>Сумма</th>
+                    <th>Цена до скидки, ₽</th>
+                    <th>Сумма после скидки</th>
                     <th />
                   </tr>
                 </thead>
@@ -2024,7 +2047,7 @@ function InvoiceEditor({
                           type="number"
                           min="0"
                           step="0.01"
-                          value={l.unit_price / 100}
+                          value={basePrice(l) / 100}
                           required
                           disabled={disabled}
                           onChange={(e) => {
@@ -2039,6 +2062,7 @@ function InvoiceEditor({
                             }
                           }}
                         />
+                        <small>После скидки: {money(l.unit_price)}</small>
                       </td>
                       <td className="numeric">{money(l.total)}</td>
                       <td>
@@ -2074,7 +2098,7 @@ function InvoiceEditor({
         </div>
         <div className="invoice-fields bottom-fields">
           <label>
-            Скидка, ₽ (уже учтена в ценах)
+            Скидка на товары, ₽
             <input
               type="number"
               min="0"
@@ -2083,9 +2107,35 @@ function InvoiceEditor({
               disabled={disabled}
               onChange={(e) => {
                 try {
-                  patch({ discount: cents(e.target.value || "0") });
+                  patch(applyDiscount(i, cents(e.target.value || "0")));
+                  setError("");
                 } catch {
-                  setError("Проверьте сумму скидки");
+                  setError("Скидка не должна превышать стоимость товаров");
+                }
+              }}
+            />
+          </label>
+          <label>
+            Скидка на товары, %
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={i.discount_percent ?? ""}
+              disabled={disabled}
+              onChange={(e) => {
+                try {
+                  patch(
+                    applyDiscount(
+                      i,
+                      i.discount || 0,
+                      e.target.value === "" ? null : Number(e.target.value),
+                    ),
+                  );
+                  setError("");
+                } catch {
+                  setError("Скидка должна быть от 0 до 100%");
                 }
               }}
             />
