@@ -1,0 +1,263 @@
+.user-guide {
+  max-width: 1180px;
+  color: #283d37;
+}
+.user-guide p {
+  line-height: 1.7;
+  max-width: 68ch;
+  margin: 12px 0;
+}
+.user-guide a {
+  color: #245849;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.guide-intro {
+  padding-bottom: 24px;
+}
+.guide-flow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  color: #245849;
+}
+.guide-flow span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+}
+.guide-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.guide-contents button {
+  padding: 10px 14px;
+  border: 1px solid #d3ddd5;
+  border-radius: 8px;
+  background: #fff;
+  color: #245849;
+}
+.guide-contents button:hover {
+  background: #edf3e9;
+}
+.guide-step {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  padding: 42px 0;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 24px;
+  align-items: start;
+}
+.guide-number {
+  font-size: 13px;
+  font-weight: 650;
+  color: #496451;
+  letter-spacing: 0.06em;
+}
+.user-guide h2 {
+  font-size: 24px;
+  line-height: 1.3;
+  margin: 10px 0 18px;
+}
+.user-guide h3 {
+  font-size: 17px;
+  margin: 16px 0;
+}
+.guide-figure {
+  margin: 0;
+  padding: 26px;
+  background: #fff;
+  border: 1px solid #dce4db;
+  border-radius: 14px;
+  min-width: 0;
+}
+.guide-figure figcaption {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #53635b;
+  margin-top: 22px;
+}
+.guide-paper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #245849;
+  padding: 16px;
+  background: #f1f4ef;
+  border-radius: 8px;
+}
+.guide-paper small {
+  display: block;
+  margin-top: 7px;
+  color: #53635b;
+}
+.guide-queue {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.guide-queue > * {
+  padding: 10px 14px;
+  border-left: 3px solid #b8c8b3;
+}
+.guide-queue strong {
+  background: #edf3e9;
+  border-color: #245849;
+}
+.guide-example-title {
+  font-size: 12px;
+  color: #53635b;
+}
+.guide-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 22px 0;
+}
+.guide-fields dt {
+  font-size: 12px;
+  color: #53635b;
+}
+.guide-fields dd {
+  margin: 7px 0 0;
+  padding: 11px;
+  border: 1px solid #dce4db;
+  border-radius: 7px;
+  font-weight: 600;
+}
+.guide-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #edf3e9;
+  padding: 14px;
+  border-radius: 7px;
+  font-weight: 600;
+}
+.guide-calculation {
+  margin: 20px 0 0;
+}
+.guide-calculation > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+}
+.guide-calculation dd {
+  margin: 0;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.guide-discount {
+  color: #245849;
+}
+.guide-calculation .guide-total {
+  border-top: 1px solid #dce4db;
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 650;
+}
+.guide-telegram {
+  background: #eef2ed;
+}
+.guide-bubble {
+  background: #fff;
+  padding: 18px;
+  border-radius: 10px;
+  margin: 18px 0 8px;
+}
+.guide-bubble p {
+  font-size: 14px;
+}
+.guide-fake-button,
+.guide-bot-flags span {
+  background: #dce7dc;
+  padding: 12px;
+  text-align: center;
+  border-radius: 7px;
+  margin: 5px 0;
+  font-weight: 550;
+  font-size: 14px;
+}
+.guide-bot-flags {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.guide-command-list dl > div {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.5;
+}
+.guide-command-list dd {
+  margin: 0;
+}
+.guide-command-list code {
+  font-size: 13px;
+}
+.guide-help {
+  padding: 40px 0;
+}
+.guide-help details {
+  border-bottom: 1px solid #dce4db;
+  padding: 18px 0;
+}
+.guide-help summary {
+  cursor: pointer;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.guide-help details p {
+  padding-left: 18px;
+}
+.user-guide button:focus-visible,
+.user-guide summary:focus-visible,
+.user-guide a:focus-visible {
+  outline: 3px solid #245849;
+  outline-offset: 4px;
+}
+@media (max-width: 900px) {
+  .guide-step {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .guide-figure {
+    max-width: 580px;
+    width: 100%;
+  }
+  .guide-contents button {
+    font-size: 13px;
+  }
+  .guide-flow {
+    gap: 8px;
+    font-size: 13px;
+  }
+}
+@media (max-width: 450px) {
+  .guide-figure {
+    padding: 18px;
+  }
+  .guide-bot-flags {
+    grid-template-columns: 1fr;
+  }
+  .guide-command-list dl > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .guide-calculation .guide-total {
+    font-size: 18px;
+  }
+  .user-guide h2 {
+    font-size: 21px;
+  }
+}

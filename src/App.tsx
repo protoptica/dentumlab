@@ -1,3 +1,4 @@
+import UserGuide from "./UserGuide";
 import { applyDiscount, prepareDiscount, basePrice } from "./discount";
 import { loginError } from "./auth-errors";
 import AccountSettings from "./AccountSettings";
@@ -30,6 +31,7 @@ import {
   SlidersHorizontal,
   ExternalLink,
   Leaf,
+  BookOpen,
 } from "lucide-react";
 import {
   Data,
@@ -48,13 +50,20 @@ import {
 } from "./domain";
 import * as api from "./store";
 type Page =
-  "overview" | "invoices" | "materials" | "suppliers" | "review" | "settings";
+  | "overview"
+  | "invoices"
+  | "materials"
+  | "suppliers"
+  | "review"
+  | "settings"
+  | "guide";
 const pages: { id: Page; label: string; icon: typeof Boxes }[] = [
   { id: "overview", label: "Обзор", icon: LayoutDashboard },
   { id: "invoices", label: "Счета", icon: ReceiptText },
   { id: "materials", label: "Материалы", icon: Boxes },
   { id: "suppliers", label: "Поставщики", icon: Building2 },
   { id: "review", label: "Проверка документов", icon: ScanLine },
+  { id: "guide", label: "Инструкция", icon: BookOpen },
 ];
 function pageFromHash(): Page {
   const value = location.hash.replace(/^#\/?/, "");
@@ -65,6 +74,7 @@ function pageFromHash(): Page {
     "suppliers",
     "review",
     "settings",
+    "guide",
   ].includes(value)
     ? (value as Page)
     : "overview";
@@ -720,6 +730,7 @@ function App() {
                     suppliers: "Поставщики лаборатории и объём закупок.",
                     review: "Проверьте данные перед включением в отчёты.",
                     settings: "Подключения, данные и журнал изменений.",
+                    guide: "Как загрузить, проверить и учесть счёт.",
                   }[page]
                 }
               </p>
@@ -735,7 +746,8 @@ function App() {
                   Поставщик
                 </button>
               ) : (
-                page !== "settings" && (
+                page !== "settings" &&
+                page !== "guide" && (
                   <>
                     <button
                       className="secondary"
@@ -1221,6 +1233,7 @@ function App() {
               </section>
             </>
           )}
+          {page === "guide" && <UserGuide />}
           {page === "settings" && (
             <div className="settings-grid">
               {!api.isDemo && <AccountSettings />}

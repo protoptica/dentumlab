@@ -1,0 +1,320 @@
+import {
+  FileText,
+  Upload,
+  ScanLine,
+  CheckCheck,
+  Package,
+  ArrowRight,
+} from "lucide-react";
+import "./user-guide.css";
+const topics = ["Загрузка", "Проверка", "Скидка", "Статусы", "Поиск", "Помощь"];
+export default function UserGuide() {
+  return (
+    <article className="user-guide">
+      <div className="guide-intro">
+        <p>
+          От документа до учёта закупки. Ниже — иллюстрации с вымышленными
+          данными, а не ваши счета.
+        </p>
+        <div className="guide-flow">
+          <span>
+            <Upload size={18} />
+            Загрузить
+          </span>
+          <ArrowRight size={16} />
+          <span>
+            <ScanLine size={18} />
+            Проверить
+          </span>
+          <ArrowRight size={16} />
+          <span>
+            <CheckCheck size={18} />
+            Подтвердить
+          </span>
+        </div>
+      </div>
+      <nav aria-label="Содержание инструкции" className="guide-contents">
+        {topics.map((t, n) => (
+          <button
+            key={t}
+            onClick={() =>
+              document
+                .getElementById("guide-" + n)
+                ?.scrollIntoView({ behavior: "auto", block: "start" })
+            }
+          >
+            {n + 1}. {t}
+          </button>
+        ))}
+      </nav>
+      <section id="guide-0" className="guide-step">
+        <div>
+          <span className="guide-number">01</span>
+          <h2>Загрузите счёт</h2>
+          <p>
+            Нажмите «Загрузить счёт» на сайте или отправьте файл{" "}
+            <a
+              href="https://t.me/dentumlabbot"
+              target="_blank"
+              rel="noreferrer"
+            >
+              @dentumlabbot
+            </a>
+            . Поддерживаются PDF, JPG и PNG до 20 МБ.
+          </p>
+          <p>
+            После распознавания откройте{" "}
+            <a href="#/review">«Проверку документов»</a>.
+          </p>
+          <p>
+            Если компьютер с обработчиком выключен или спит, очередь
+            сохраняется. Не отправляйте файл повторно.
+          </p>
+        </div>
+        <figure className="guide-figure">
+          <div className="guide-paper">
+            <FileText size={36} />
+            <div>
+              <strong>Счёт № 1047.pdf</strong>
+              <small>Оригинал документа</small>
+            </div>
+          </div>
+          <div className="guide-queue">
+            <span>1. В очереди</span>
+            <span>2. Распознаётся</span>
+            <strong>3. Требует проверки</strong>
+          </div>
+          <figcaption>
+            Загрузка ещё не означает, что счёт проверен и учтён.
+          </figcaption>
+        </figure>
+      </section>
+      <section id="guide-1" className="guide-step">
+        <div>
+          <span className="guide-number">02</span>
+          <h2>Сверьте с оригиналом</h2>
+          <p>
+            Откройте карточку → «Открыть оригинал». Проверьте номер, дату,
+            поставщика, товары, количество, цены, скидку, НДС и итог.
+          </p>
+          <p>
+            Для каждой строки выберите материал из справочника или «Создать
+            новый материал». Сверяйте фасовку, чтобы не создавать дубликаты.
+          </p>
+          <p>
+            Фасовка — количество базовых единиц в одной упаковке. В примере
+            куплены 2 упаковки по 100 штук: всего 200 штук.
+          </p>
+          <p>
+            Крестик и Escape закрывают карточку без сохранения правок. Клик
+            снаружи её не закрывает.
+          </p>
+        </div>
+        <figure className="guide-figure">
+          <div className="guide-example-title">Строка счёта · пример</div>
+          <h3>Перчатки нитриловые</h3>
+          <dl className="guide-fields">
+            <div>
+              <dt>Количество</dt>
+              <dd>2</dd>
+            </div>
+            <div>
+              <dt>Единица счёта</dt>
+              <dd>уп.</dd>
+            </div>
+            <div>
+              <dt>Баз. ед. в упаковке</dt>
+              <dd>100</dd>
+            </div>
+            <div>
+              <dt>Базовая единица</dt>
+              <dd>шт.</dd>
+            </div>
+          </dl>
+          <div className="guide-result">
+            <Package size={20} />2 упаковки × 100 = 200 шт.
+          </div>
+          <figcaption>
+            Распознавание может ошибаться: перед подтверждением нужна проверка
+            человеком.
+          </figcaption>
+        </figure>
+      </section>
+      <section id="guide-2" className="guide-step">
+        <div>
+          <span className="guide-number">03</span>
+          <h2>Укажите скидку на товары</h2>
+          <p>
+            В строках указана цена до скидки. Введите скидку в рублях или
+            процентах: стоимость товаров и итог пересчитаются автоматически.
+          </p>
+          <p>
+            <strong>Скидка никогда не уменьшает доставку.</strong> Доставку
+            укажите отдельно, включая НДС, если он входит в её стоимость по
+            документу.
+          </p>
+          <p>
+            Не вычитайте одну скидку дважды — вручную из цены и ещё раз через
+            поле скидки. Не дублируйте доставку в строках и отдельном поле.
+          </p>
+        </div>
+        <figure className="guide-figure">
+          <div className="guide-example-title">Расчёт · пример</div>
+          <dl className="guide-calculation">
+            <div>
+              <dt>Товары до скидки</dt>
+              <dd>10 000 ₽</dd>
+            </div>
+            <div className="guide-discount">
+              <dt>Скидка 10%</dt>
+              <dd>−1 000 ₽</dd>
+            </div>
+            <div>
+              <dt>Товары после скидки</dt>
+              <dd>9 000 ₽</dd>
+            </div>
+            <div>
+              <dt>Доставка · без скидки</dt>
+              <dd>500 ₽</dd>
+            </div>
+            <div className="guide-total">
+              <dt>Итого к оплате</dt>
+              <dd>9 500 ₽</dd>
+            </div>
+          </dl>
+          <figcaption>
+            10% или 1 000 ₽ — два способа задать одну скидку.
+          </figcaption>
+        </figure>
+      </section>
+      <section id="guide-3" className="guide-step">
+        <div>
+          <span className="guide-number">04</span>
+          <h2>Подтвердите и отмечайте выполнение</h2>
+          <p>
+            «Сохранить» сохраняет правки. Счёт на проверке остаётся
+            неподтверждённым. «Подтвердить счёт» включает его в отчёты.
+          </p>
+          <p>
+            «Оплачено» отмечайте после полной оплаты, «Товар получен» — после
+            получения заказа. На сайте сохраните карточку после изменения
+            галочек; в боте нажатие сохраняется сразу.
+          </p>
+          <p>
+            Случайный или чужой счёт отклоните. Он исключается из статистики,
+            оригинал остаётся в архиве. Повтор того же файла не запускает
+            распознавание заново.
+          </p>
+          <p>
+            Ошибочно отклонили? В боте откройте счёт и нажмите «Подтвердить
+            счёт». Пока счёт отклонён, попытка отметить оплату или получение
+            вернёт ошибку.
+          </p>
+        </div>
+        <figure className="guide-figure guide-telegram">
+          <div className="guide-example-title">
+            Карточка в Telegram · пример
+          </div>
+          <div className="guide-bubble">
+            <strong>Счёт № 1047</strong>
+            <p>
+              Статус: требует проверки
+              <br />
+              Оплачено: нет
+              <br />
+              Товар не получен
+            </p>
+          </div>
+          <div className="guide-fake-button">Подтвердить счёт</div>
+          <div className="guide-fake-button">Отклонить счёт</div>
+          <div className="guide-bot-flags">
+            <span>✅ Оплачено — нет</span>
+            <span>📦 Получено — нет</span>
+          </div>
+          <figcaption>
+            Нажимайте кнопки в одной карточке. Она обновляется после изменения.
+          </figcaption>
+        </figure>
+      </section>
+      <section id="guide-4" className="guide-step">
+        <div>
+          <span className="guide-number">05</span>
+          <h2>Найдите счёт и проверьте отчёты</h2>
+          <p>
+            В <a href="#/invoices">«Счетах»</a> используйте поиск, фильтры
+            оплаты и получения. Сортируйте по дате или сумме. Кнопка CSV
+            выгружает отфильтрованный список.
+          </p>
+          <p>
+            В <a href="#/overview">«Обзоре»</a> выберите период. Если суммы
+            нулевые, проверьте даты и подтверждение счетов. Непроверенные,
+            отклонённые и архивированные счета не входят в суммы закупок.
+          </p>
+          <p>
+            В <a href="#/materials">«Материалах»</a> доступны карточки и история
+            закупок. В боте: /materials → материал → «Изменить карточку» → поле
+            → новое значение.
+          </p>
+        </div>
+        <div className="guide-command-list">
+          <h3>Команды бота</h3>
+          <dl>
+            {[
+              ["/status", "Статус последнего документа"],
+              ["/documents", "Последние документы"],
+              ["/invoices", "Последние счета"],
+              ["/materials", "Карточки материалов"],
+              ["/find название", "Поиск материала"],
+              ["/cancel", "Отмена ввода при редактировании"],
+            ].map(([c, t]) => (
+              <div key={c}>
+                <dt>
+                  <code>{c}</code>
+                </dt>
+                <dd>{t}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+      <section id="guide-5" className="guide-help">
+        <span className="guide-number">06</span>
+        <h2>Доступ и помощь</h2>
+        <details>
+          <summary>Как войти и изменить пароль?</summary>
+          <p>
+            Войдите с выданными email и паролем. Устанавливать программы для
+            работы с сайтом не нужно. В <a href="#/settings">«Настройках»</a>{" "}
+            откройте «Мой пароль». Минимальная длина — 8 символов.
+          </p>
+        </details>
+        <details>
+          <summary>Как добавить сотрудника?</summary>
+          <p>
+            Владелец создаёт аккаунты в настройках, назначает роли и сбрасывает
+            пароли. Email и пароль нужно передать сотруднику самостоятельно:
+            автоматическое письмо не отправляется. Доступ к боту выдаётся
+            отдельно по Telegram ID.
+          </p>
+        </details>
+        <details>
+          <summary>Документ долго в очереди или появилась ошибка</summary>
+          <p>
+            Проверьте /status в боте и обновите данные на сайте. Убедитесь, что
+            компьютер с обработчиком включён, подключён к интернету и не спит.
+            При ошибке передайте владельцу номер счёта и текст ошибки. Не
+            отправляйте тот же документ многократно.
+          </p>
+        </details>
+        <details>
+          <summary>Счёт уже изменён другим сотрудником</summary>
+          <p>
+            Обновите данные и откройте счёт заново. Сверьте последние изменения
+            перед сохранением. Если изменились состав или цены, перед
+            подтверждением в боте откройте свежую карточку.
+          </p>
+        </details>
+      </section>
+    </article>
+  );
+}
