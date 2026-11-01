@@ -21,6 +21,8 @@ try {
     $ollama = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
     if (-not (Test-Path $ollama)) { Install-Package 'Ollama.Ollama' }
     if (-not (Test-Path $ollama)) { $ollama = (Get-Command ollama -ErrorAction Stop).Source }
+    $soffice = Join-Path $env:ProgramFiles 'LibreOffice\program\soffice.exe'
+    if (-not (Test-Path $soffice)) { Install-Package 'TheDocumentFoundation.LibreOffice' }
     $tesseract = Join-Path $env:ProgramFiles 'Tesseract-OCR\tesseract.exe'
     if (-not (Test-Path $tesseract)) { Install-Package 'UB-Mannheim.TesseractOCR' }
     if (-not (Test-Path $tesseract)) { $tesseract = (Get-Command tesseract -ErrorAction Stop).Source }

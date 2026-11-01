@@ -27,6 +27,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "011_telegram_live_cards.sql",
       "012_restore_declined.sql",
       "013_automatic_retries.sql",
+      "014_converted_documents.sql",
     ])
       await db.exec(
         (

@@ -19,6 +19,14 @@ Deno.serve(async (req) => {
         p_lab: cred.lab_id,
       });
       if (error) throw Error("Не удалось получить задание");
+      if (data) {
+        const { data: doc } = await db
+          .from("document")
+          .select("name")
+          .eq("id", data.document_id)
+          .single();
+        return json({ ...data, filename: doc?.name || "document.pdf" });
+      }
       return json(data);
     }
     const { data: j } = await db
@@ -43,6 +51,28 @@ Deno.serve(async (req) => {
       return new Response(blob, {
         headers: { "Content-Type": "application/octet-stream" },
       });
+    }
+    if (body.action === "preview") {
+      if (typeof body.pdf !== "string" || body.pdf.length > 28000000)
+        throw Error("PDF слишком большой");
+      const bytes = Uint8Array.from(atob(body.pdf), (c) => c.charCodeAt(0));
+      if (
+        bytes.length > 20971520 ||
+        new TextDecoder().decode(bytes.slice(0, 4)) !== "%PDF"
+      )
+        throw Error("Некорректный PDF");
+      const path = cred.lab_id + "/" + j.document_id + ".pdf";
+      const { error: uploadError } = await db.storage
+        .from("converted")
+        .upload(path, bytes, { contentType: "application/pdf", upsert: true });
+      if (uploadError) throw Error("Не удалось сохранить PDF");
+      const { error: updateError } = await db
+        .from("document")
+        .update({ pdf_path: path })
+        .eq("id", j.document_id)
+        .eq("lab_id", cred.lab_id);
+      if (updateError) throw Error("Не удалось записать PDF");
+      return json({ ok: true });
     }
     if (body.action === "renew") {
       const { error } = await db

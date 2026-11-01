@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     const { document_id } = await req.json();
     const { data: d } = await db
       .from("document")
-      .select("lab_id,file_id,name")
+      .select("lab_id,file_id,name,pdf_path")
       .eq("id", document_id)
       .single();
     if (!d) return json({ error: "Документ не найден" }, 404);
@@ -17,6 +17,18 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
     if (!member) return json({ error: "Нет доступа" }, 403);
+    if (d.pdf_path) {
+      const { data, error } = await db.storage
+        .from("converted")
+        .createSignedUrl(d.pdf_path, 3600);
+      if (error) throw Error("Не удалось открыть PDF");
+      return json({ url: data.signedUrl, expires_in: 3600 });
+    }
+    if (!/\.(pdf|png|jpe?g)$/i.test(d.name))
+      return json(
+        { error: "PDF ещё не готов. Дождитесь конвертации обработчиком." },
+        409,
+      );
     if (!d.file_id)
       return json({ error: "Оригинал ещё не сохранён в архиве" }, 409);
     const file = await telegramFile(d.file_id);
@@ -38,9 +50,9 @@ Deno.serve(async (req) => {
     if (error) throw Error("Не удалось подготовить оригинал");
     const { data, error: err } = await db.storage
       .from("previews")
-      .createSignedUrl(path, 300);
+      .createSignedUrl(path, 3600);
     if (err) throw Error("Не удалось открыть оригинал");
-    return json({ url: data.signedUrl, expires_in: 300 });
+    return json({ url: data.signedUrl, expires_in: 3600 });
   } catch {
     return json(
       { error: "Оригинал недоступен. Проверьте вход и Telegram-архив." },

@@ -1,0 +1,3 @@
+alter table public.document add column pdf_path text;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('converted','converted',false,20971520,array['application/pdf']);
+update storage.buckets set allowed_mime_types=array['application/pdf','image/jpeg','image/png','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.oasis.opendocument.text','application/vnd.oasis.opendocument.spreadsheet','application/rtf','text/rtf','application/octet-stream'] where id='incoming';

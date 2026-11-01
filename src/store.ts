@@ -214,8 +214,10 @@ export async function addSupplier(data: Data, name: string, inn: string) {
 }
 export async function upload(file: File) {
   if (file.size > 20 * 1024 * 1024) throw Error("Файл больше 20 МБ");
-  if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type))
-    throw Error("Поддерживаются PDF, JPG и PNG");
+  if (!/\.(pdf|jpe?g|png|xlsx?|docx?|odt|ods|rtf)$/i.test(file.name))
+    throw Error(
+      "Поддерживаются PDF, JPG, PNG, XLS, XLSX, DOC, DOCX, ODT, ODS и RTF",
+    );
   if (!supabase)
     throw Error(
       "Для загрузки документов подключите Supabase и Telegram. В деморежиме можно создать счёт вручную.",
@@ -223,7 +225,9 @@ export async function upload(file: File) {
   const path = `${labId}/${uid()}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const { error } = await supabase.storage
     .from("incoming")
-    .upload(path, file, { contentType: file.type });
+    .upload(path, file, {
+      contentType: file.type || "application/octet-stream",
+    });
   if (error) throw error;
   const result = await supabase.rpc("register_upload", {
     p_lab: labId,

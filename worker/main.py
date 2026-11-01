@@ -1,6 +1,7 @@
 """Outbound-only queue worker. No Supabase service role and no Telegram token."""
 from __future__ import annotations
 import hashlib
+import base64
 import logging
 import os
 import threading
@@ -9,6 +10,7 @@ from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
 from extractor import process, PermanentExtractionError
+from converter import to_pdf
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -50,7 +52,10 @@ def run():
                 content = call('download', job)
                 if len(content) > 20 * 1024 * 1024:
                     raise ValueError('Файл больше 20 МБ')
-                result = process(content, retry_hint=job.get('last_error') or '')
+                converted = to_pdf(content, job.get('filename', 'document.pdf'))
+                if converted != content:
+                    call('preview', job, pdf=base64.b64encode(converted).decode('ascii'))
+                result = process(converted, retry_hint=job.get('last_error') or '')
                 call('complete', job, hash=hashlib.sha256(content).hexdigest(), result=result)
                 del content
                 logging.info('Задание завершено: %s', job['id'])

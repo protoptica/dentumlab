@@ -189,6 +189,35 @@ function App() {
     [showSupplier, setShowSupplier] = useState(false),
     [busy, setBusy] = useState(false),
     [originalUrl, setOriginalUrl] = useState("");
+  const [originalLoading, setOriginalLoading] = useState(false);
+  const [documentPreview, setDocumentPreview] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setOriginalUrl("");
+    const id = editing?.document_id || documentPreview?.id;
+    if (!id) {
+      setOriginalLoading(false);
+      return;
+    }
+    setOriginalLoading(true);
+    api
+      .original(id)
+      .then((url) => {
+        if (!cancelled) setOriginalUrl(url);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(message(e));
+      })
+      .finally(() => {
+        if (!cancelled) setOriginalLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editing?.id, documentPreview?.id]);
   const currentUser = useRef(session?.user.id);
   currentUser.current = session?.user.id;
   const refresh = async () => {
@@ -1216,7 +1245,19 @@ function App() {
                     <div className="queue-row" key={d.id}>
                       <FileText />
                       <div>
-                        <strong>{d.name}</strong>
+                        <button
+                          className="text-button"
+                          onClick={() => {
+                            setError("");
+                            const invoice = data.invoices.find(
+                              (i) => i.document_id === d.id,
+                            );
+                            if (invoice) setEditing(structuredClone(invoice));
+                            else setDocumentPreview({ id: d.id, name: d.name });
+                          }}
+                        >
+                          {d.name}
+                        </button>
                         <small>
                           {d.source === "telegram"
                             ? "Telegram"
@@ -1396,6 +1437,32 @@ function App() {
           </footer>
         </main>
       </div>
+      {documentPreview && (
+        <Modal
+          title={documentPreview.name}
+          error={error}
+          wide
+          close={() => {
+            setDocumentPreview(null);
+            setOriginalUrl("");
+            setError("");
+          }}
+        >
+          <div className="document-preview">
+            <p>Карточка счёта появится после успешного распознавания.</p>
+            {originalLoading ? (
+              <p role="status">Загружаем документ…</p>
+            ) : originalUrl ? (
+              <iframe title="Оригинал документа" src={originalUrl} />
+            ) : (
+              <p>
+                Предпросмотр пока недоступен. Офисный документ появится здесь в
+                PDF после конвертации обработчиком.
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
       {editing && (
         <Modal
           error={error}
@@ -1426,8 +1493,13 @@ function App() {
             busy={busy}
             disabled={!online}
             originalUrl={originalUrl}
+            originalLoading={originalLoading}
             onOriginal={() =>
               void act(async () => {
+                if (originalUrl) {
+                  setOriginalUrl("");
+                  return;
+                }
                 if (!editing.document_id)
                   throw Error("У этого счёта нет прикреплённого оригинала");
                 setOriginalUrl(await api.original(editing.document_id));
@@ -1568,10 +1640,12 @@ function App() {
                 >
                   <Upload size={30} />
                   <strong>Выберите файл или перетащите сюда</strong>
-                  <span>PDF, JPG, PNG · до 20 МБ</span>
+                  <span>
+                    PDF, изображения, Excel, Word, ODT, ODS, RTF · до 20 МБ
+                  </span>
                   <input
                     type="file"
-                    accept="application/pdf,image/jpeg,image/png"
+                    accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx,.odt,.ods,.rtf"
                     disabled={busy}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -1808,6 +1882,7 @@ function InvoiceEditor({
   disabled,
   onOriginal,
   originalUrl,
+  originalLoading,
   onArchive,
   onDecline,
 }: {
@@ -1820,6 +1895,7 @@ function InvoiceEditor({
   onArchive: () => void;
   onDecline: () => void;
   originalUrl: string;
+  originalLoading: boolean;
 }) {
   const [i, set] = useState(() => prepareDiscount(invoice)),
     [error, setError] = useState("");
@@ -1956,11 +2032,17 @@ function InvoiceEditor({
           <button
             type="button"
             className="text-button"
-            disabled={!i.document_id}
+            disabled={!i.document_id || originalLoading}
             onClick={onOriginal}
           >
             <ExternalLink size={16} />
-            {i.document_id ? "Открыть оригинал" : "Оригинал не прикреплён"}
+            {originalLoading
+              ? "Загружаем оригинал…"
+              : originalUrl
+                ? "Скрыть оригинал"
+                : i.document_id
+                  ? "Открыть оригинал"
+                  : "Оригинал не прикреплён"}
           </button>
         </div>
         <div className={originalUrl ? "split-review" : ""}>

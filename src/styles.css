@@ -1800,3 +1800,21 @@ dialog::backdrop {
 .account-error {
   color: #a4362b;
 }
+
+.document-preview {
+  padding: 24px;
+}
+.document-preview iframe {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.queue-row .text-button {
+  text-align: left;
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+  padding: 0;
+  font-weight: 600;
+  font-size: inherit;
+}
