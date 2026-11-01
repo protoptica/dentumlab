@@ -977,6 +977,18 @@ td small {
 .queue {
   margin-top: 22px;
 }
+.queue-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.queue-filter {
+  width: auto;
+  min-width: 145px;
+  max-width: 190px;
+  padding: 9px 28px 9px 12px;
+  font-size: 14px;
+}
 .queue-row {
   display: flex;
   align-items: center;
@@ -1582,6 +1594,17 @@ dialog::backdrop {
   }
   .section-heading {
     padding: 19px 16px;
+  }
+  .queue-controls {
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .queue-filter {
+    min-width: 125px;
+    max-width: 155px;
+    padding: 8px 24px 8px 9px;
+    font-size: 13px;
   }
   h2 {
     font-size: 15px;

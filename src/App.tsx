@@ -179,6 +179,7 @@ function App() {
     [supplier, setSupplier] = useState(""),
     [category, setCategory] = useState(""),
     [status, setStatus] = useState(""),
+    [queueStatus, setQueueStatus] = useState<Status | "">(""),
     [payment, setPayment] = useState(""),
     [receipt, setReceipt] = useState(""),
     [sort, setSort] = useState("date"),
@@ -326,6 +327,9 @@ function App() {
   const pending =
     data.invoices.filter((i) => i.status === "review").length +
     data.documents.filter((d) => d.status === "error").length;
+  const filteredDocuments = data.documents.filter(
+    (d) => !queueStatus || d.status === queueStatus,
+  );
   const categories = [
     ...new Set(
       data.materials
@@ -1181,17 +1185,34 @@ function App() {
               <section className="panel queue">
                 <div className="section-heading">
                   <h2>Очередь документов</h2>
-                  <button
-                    className="text-button"
-                    onClick={() => void refresh()}
-                    disabled={!online}
-                  >
-                    <RefreshCw size={15} />
-                    Обновить
-                  </button>
+                  <div className="queue-controls">
+                    <select
+                      className="queue-filter"
+                      aria-label="Фильтр очереди документов по статусу"
+                      value={queueStatus}
+                      onChange={(event) =>
+                        setQueueStatus(event.target.value as Status | "")
+                      }
+                    >
+                      <option value="">Все статусы</option>
+                      {Object.entries(labels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="text-button"
+                      onClick={() => void refresh()}
+                      disabled={!online}
+                    >
+                      <RefreshCw size={15} />
+                      Обновить
+                    </button>
+                  </div>
                 </div>
-                {data.documents.length ? (
-                  data.documents.map((d) => (
+                {filteredDocuments.length ? (
+                  filteredDocuments.map((d) => (
                     <div className="queue-row" key={d.id}>
                       <FileText />
                       <div>
@@ -1227,7 +1248,11 @@ function App() {
                 ) : (
                   <div className="empty-inline compact">
                     <Clock size={23} />
-                    <p>В очереди нет документов</p>
+                    <p>
+                      {data.documents.length
+                        ? "Нет документов с таким статусом"
+                        : "В очереди нет документов"}
+                    </p>
                   </div>
                 )}
               </section>
