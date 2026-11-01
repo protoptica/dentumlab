@@ -8,7 +8,7 @@ import time
 from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
-from extractor import process
+from extractor import process, PermanentExtractionError
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -50,7 +50,7 @@ def run():
                 content = call('download', job)
                 if len(content) > 20 * 1024 * 1024:
                     raise ValueError('Файл больше 20 МБ')
-                result = process(content)
+                result = process(content, retry_hint=job.get('last_error') or '')
                 call('complete', job, hash=hashlib.sha256(content).hexdigest(), result=result)
                 del content
                 logging.info('Задание завершено: %s', job['id'])
@@ -63,7 +63,7 @@ def run():
             logging.warning('%s', safe)
             if job:
                 try:
-                    call('fail', job, error=safe)
+                    call('fail', job, error=safe, retryable=not isinstance(exc, PermanentExtractionError))
                 except Exception:
                     logging.warning('Ошибка не записана; задание повторится после окончания аренды')
         finally:

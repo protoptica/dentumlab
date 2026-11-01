@@ -26,6 +26,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "010_discount_calculation.sql",
       "011_telegram_live_cards.sql",
       "012_restore_declined.sql",
+      "013_automatic_retries.sql",
     ])
       await db.exec(
         (
@@ -572,6 +573,91 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
         ])
       ).rows[0].status,
       "review",
+    );
+
+    // Transient failures get bounded delayed retries; permanent errors and completed documents do not.
+    await db.exec("reset role");
+    const rd = crypto.randomUUID(),
+      rj = crypto.randomUUID();
+    await db.query(
+      "insert into document(id,lab_id,name,source) values($1,$2,'retry.pdf','web')",
+      [rd, lab],
+    );
+    await db.query(
+      "insert into job(id,lab_id,document_id,kind,state,attempts,last_error) values($1,$2,$3,'extract','error',5,'Сбой сети')",
+      [rj, lab, rd],
+    );
+    await db.query("select schedule_extraction_retries($1)", [lab]);
+    let retry = (
+      await db.query<any>(
+        "select *,available_at>now() delayed from job where id=$1",
+        [rj],
+      )
+    ).rows[0];
+    assert.equal(retry.state, "pending");
+    assert.equal(retry.attempts, 0);
+    assert.equal(retry.retry_round, 1);
+    assert.equal(retry.delayed, true);
+    await db.query("select schedule_extraction_retries($1)", [lab]);
+    assert.equal(
+      (await db.query<any>("select retry_round from job where id=$1", [rj]))
+        .rows[0].retry_round,
+      1,
+    );
+    await db.query("update job set state='error',attempts=5 where id=$1", [rj]);
+    await db.query("select schedule_extraction_retries($1)", [lab]);
+    retry = (
+      await db.query<any>(
+        "select *,available_at>now()+interval '119 minutes' delayed from job where id=$1",
+        [rj],
+      )
+    ).rows[0];
+    assert.equal(retry.retry_round, 2);
+    assert.equal(retry.delayed, true);
+    await db.query("update job set state='error',attempts=5 where id=$1", [rj]);
+    await db.query("select schedule_extraction_retries($1)", [lab]);
+    assert.equal(
+      (await db.query<any>("select state from job where id=$1", [rj])).rows[0]
+        .state,
+      "error",
+    );
+    const token = crypto.randomUUID();
+    await db.query(
+      "update job set state='running',attempts=1,retry_round=0,lease_token=$2,lease_until=now()+interval '10 minutes' where id=$1",
+      [rj, token],
+    );
+    assert.equal(
+      (
+        await db.query<any>(
+          "select fail_extraction($1,$2,'Неподдерживаемый формат',false) ok",
+          [rj, token],
+        )
+      ).rows[0].ok,
+      true,
+    );
+    retry = (await db.query<any>("select * from job where id=$1", [rj]))
+      .rows[0];
+    assert.equal(retry.state, "error");
+    assert.equal(retry.retry_round, 0);
+    assert.equal(retry.payload.retryable, false);
+    assert.equal(
+      (
+        await db.query<any>("select fail_extraction($1,$2,'late',true) ok", [
+          rj,
+          token,
+        ])
+      ).rows[0].ok,
+      false,
+    );
+    await db.query("update job set payload='{}',state='error' where id=$1", [
+      rj,
+    ]);
+    await db.query("update document set status='declined' where id=$1", [rd]);
+    await db.query("select schedule_extraction_retries($1)", [lab]);
+    assert.equal(
+      (await db.query<any>("select state from job where id=$1", [rj])).rows[0]
+        .state,
+      "error",
     );
   } finally {
     await db.close();

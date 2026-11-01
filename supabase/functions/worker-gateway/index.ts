@@ -66,11 +66,13 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
     if (body.action === "fail") {
-      await db.rpc("finish_job", {
+      const { data, error } = await db.rpc("fail_extraction", {
         p_id: j.id,
         p_token: body.lease_token,
         p_error: String(body.error || "Ошибка распознавания").slice(0, 300),
+        p_retryable: body.retryable !== false,
       });
+      if (error || !data) throw Error("Не удалось сохранить ошибку обработки");
       return json({ ok: true });
     }
     return json({ error: "Неизвестная операция" }, 400);
