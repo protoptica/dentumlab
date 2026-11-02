@@ -9,7 +9,7 @@ import time
 from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
-from extractor import process, PermanentExtractionError
+from extractor import process, PermanentExtractionError, NotInvoiceError
 from converter import to_pdf
 
 load_dotenv()
@@ -68,7 +68,7 @@ def run():
             logging.warning('%s', safe)
             if job:
                 try:
-                    call('fail', job, error=safe, retryable=not isinstance(exc, PermanentExtractionError))
+                    call('not_invoice', job) if isinstance(exc, NotInvoiceError) else call('fail', job, error=safe, retryable=not isinstance(exc, PermanentExtractionError))
                 except Exception:
                     logging.warning('Ошибка не записана; задание повторится после окончания аренды')
         finally:

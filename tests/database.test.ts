@@ -28,6 +28,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "012_restore_declined.sql",
       "013_automatic_retries.sql",
       "014_converted_documents.sql",
+      "20261102061156_bulk_flags_and_non_invoices.sql",
     ])
       await db.exec(
         (
@@ -659,6 +660,72 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       (await db.query<any>("select state from job where id=$1", [rj])).rows[0]
         .state,
       "error",
+    );
+
+    await db.exec("reset role");
+    await db.query(
+      "update invoice set status='review',received=false,paid=0 where id=$1",
+      [inv],
+    );
+    await db.exec("set role authenticated");
+    await db.query("select mark_invoices($1,$2,'paid')", [lab, [inv]]);
+    await db.query("select mark_invoices($1,$2,'received')", [lab, [inv]]);
+    assert.equal(
+      (await db.query<any>("select received from invoice where id=$1", [inv]))
+        .rows[0].received,
+      true,
+    );
+    await assert.rejects(
+      () =>
+        db.query("select mark_invoices($1,$2,'paid')", [
+          lab,
+          [inv, crypto.randomUUID()],
+        ]),
+      /не найден/,
+    );
+    await db.exec("reset role");
+    await db.query("update invoice set status='declined' where id=$1", [inv]);
+    await db.exec("set role authenticated");
+    await assert.rejects(
+      () => db.query("select mark_invoices($1,$2,'paid')", [lab, [inv]]),
+      /отклонённый/,
+    );
+    await db.exec("reset role");
+    await db.query(
+      "update document set status='error',chat_id=123 where id=$1",
+      [rd],
+    );
+    await db.query(
+      "update job set state='running',lease_token=$2,lease_until=now()+interval '10 minutes' where id=$1",
+      [rj, token],
+    );
+    assert.equal(
+      (await db.query<any>("select archive_non_invoice($1,$2) ok", [rj, token]))
+        .rows[0].ok,
+      true,
+    );
+    assert.equal(
+      (await db.query<any>("select status from document where id=$1", [rd]))
+        .rows[0].status,
+      "archived",
+    );
+    assert.equal(
+      (await db.query<any>("select state from job where id=$1", [rj])).rows[0]
+        .state,
+      "done",
+    );
+    assert.equal(
+      (
+        await db.query<any>(
+          "select count(*)::int n from job where kind='reply' and payload->>'text' like '%не является счётом%'",
+        )
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await db.query<any>("select archive_non_invoice($1,$2) ok", [rj, token]))
+        .rows[0].ok,
+      false,
     );
   } finally {
     await db.close();

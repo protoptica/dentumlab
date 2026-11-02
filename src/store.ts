@@ -223,11 +223,9 @@ export async function upload(file: File) {
       "Для загрузки документов подключите Supabase и Telegram. В деморежиме можно создать счёт вручную.",
     );
   const path = `${labId}/${uid()}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-  const { error } = await supabase.storage
-    .from("incoming")
-    .upload(path, file, {
-      contentType: file.type || "application/octet-stream",
-    });
+  const { error } = await supabase.storage.from("incoming").upload(path, file, {
+    contentType: file.type || "application/octet-stream",
+  });
   if (error) throw error;
   const result = await supabase.rpc("register_upload", {
     p_lab: labId,
@@ -442,6 +440,33 @@ export async function declineInvoice(data: Data, i: Invoice) {
     before,
     after: structuredClone(row),
   });
+  await cache(next);
+  return next;
+}
+
+export async function markInvoices(
+  data: Data,
+  ids: string[],
+  field: "paid" | "received",
+): Promise<Data> {
+  if (supabase) {
+    const { error } = await supabase.rpc("mark_invoices", {
+      p_lab: labId,
+      p_ids: ids,
+      p_field: field,
+    });
+    if (error) throw Error(error.message);
+    return load();
+  }
+  const next = structuredClone(data);
+  for (const i of next.invoices.filter((i) => ids.includes(i.id))) {
+    if (["archived", "declined"].includes(i.status))
+      throw Error("Нельзя отметить архивный или отклонённый счёт");
+    if (field === "received") i.received = true;
+    else
+      i.paid = i.delivery + i.lines.reduce((sum, line) => sum + line.total, 0);
+    i.version++;
+  }
   await cache(next);
   return next;
 }

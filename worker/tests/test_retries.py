@@ -2,7 +2,7 @@ import sys, unittest, os, types, json
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from extractor import extract_text,process,PermanentExtractionError,OpenAICompatibleProvider
+from extractor import extract_text,process,NotInvoiceError,PermanentExtractionError,OpenAICompatibleProvider
 class RetryTests(unittest.TestCase):
  def test_excel_is_not_an_image(self):
   for signature in (bytes.fromhex('D0CF11E0'),b'PK\x03\x04'):
@@ -21,3 +21,14 @@ class RetryTests(unittest.TestCase):
    OpenAICompatibleProvider('Ошибка суммы').parse('test')
   self.assertNotEqual(captured[0],captured[1])
   self.assertIn('Не подгоняй данные',captured[1])
+
+ def test_explicit_non_invoice_is_archived(self):
+  provider=types.SimpleNamespace(parse=lambda text: {'kind':'not_invoice','lines':[]})
+  with patch('extractor.extract_text',return_value={'text':'Письмо о сотрудничестве','pages':[]}):
+   with self.assertRaises(NotInvoiceError): process(b'test',provider)
+ def test_empty_invoice_is_not_archived(self):
+  provider=types.SimpleNamespace(parse=lambda text: {'kind':'invoice','date':'2026-11-02','lines':[]})
+  with patch('extractor.extract_text',return_value={'text':'Счёт на оплату','pages':[]}):
+   try: process(b'test',provider)
+   except NotInvoiceError: self.fail('Incomplete invoice must not be archived')
+   except ValueError: pass

@@ -95,6 +95,14 @@ Deno.serve(async (req) => {
         throw Error("Результат не сохранён. Проверьте строки и аренду задания");
       return json({ ok: true });
     }
+    if (body.action === "not_invoice") {
+      const { data, error } = await db.rpc("archive_non_invoice", {
+        p_job: j.id,
+        p_token: body.lease_token,
+      });
+      if (error || !data) throw Error("Не удалось архивировать документ");
+      return json({ ok: true });
+    }
     if (body.action === "fail") {
       const { data, error } = await db.rpc("fail_extraction", {
         p_id: j.id,

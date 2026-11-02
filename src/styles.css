@@ -1818,3 +1818,12 @@ dialog::backdrop {
   font-weight: 600;
   font-size: inherit;
 }
+
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}

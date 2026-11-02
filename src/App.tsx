@@ -189,6 +189,7 @@ function App() {
     [showSupplier, setShowSupplier] = useState(false),
     [busy, setBusy] = useState(false),
     [originalUrl, setOriginalUrl] = useState("");
+  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const [originalLoading, setOriginalLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState<{
     id: string;
@@ -405,6 +406,23 @@ function App() {
     .sort((a, b) =>
       sort === "sum" ? total(b) - total(a) : b.date.localeCompare(a.date),
     );
+  const selectable = filtered.filter(
+    (i) => !["archived", "declined"].includes(i.status),
+  );
+  const selectedVisible = selectable.filter((i) =>
+    selectedInvoices.includes(i.id),
+  );
+  const markSelected = (field: "paid" | "received") =>
+    void act(async () => {
+      setData(
+        await api.markInvoices(
+          data,
+          selectedVisible.map((i) => i.id),
+          field,
+        ),
+      );
+      setNotice("Отмечено счетов: " + selectedVisible.length);
+    });
   const confirmed = filtered.filter((i) => i.status === "confirmed");
   const sum = confirmed.reduce((s, i) => s + total(i), 0),
     paid = confirmed.reduce((s, i) => s + i.paid, 0);
@@ -414,6 +432,24 @@ function App() {
         <table>
           <thead>
             <tr>
+              {page === "invoices" && (
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="Выбрать все счета"
+                    disabled={busy || !selectable.length}
+                    checked={
+                      !!selectable.length &&
+                      selectedVisible.length === selectable.length
+                    }
+                    onChange={(e) =>
+                      setSelectedInvoices(
+                        e.target.checked ? selectable.map((i) => i.id) : [],
+                      )
+                    }
+                  />
+                </th>
+              )}
               <th>Счёт / дата</th>
               <th>Поставщик</th>
               <th>Сумма</th>
@@ -431,6 +467,25 @@ function App() {
                   setOriginalUrl("");
                 }}
               >
+                {page === "invoices" && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={"Выбрать счёт " + i.number}
+                      disabled={
+                        busy || ["archived", "declined"].includes(i.status)
+                      }
+                      checked={selectedInvoices.includes(i.id)}
+                      onChange={(e) =>
+                        setSelectedInvoices((ids) =>
+                          e.target.checked
+                            ? [...ids, i.id]
+                            : ids.filter((id) => id !== i.id),
+                        )
+                      }
+                    />
+                  </td>
+                )}
                 <td>
                   <button
                     className="row-link"
@@ -1035,6 +1090,30 @@ function App() {
                       CSV
                     </button>
                   </div>
+                </div>
+                <div className="bulk-actions">
+                  <span>Выбрано: {selectedVisible.length}</span>
+                  <button
+                    className="secondary"
+                    disabled={busy || !selectedVisible.length}
+                    onClick={() => markSelected("paid")}
+                  >
+                    ✅ Оплачено
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy || !selectedVisible.length}
+                    onClick={() => markSelected("received")}
+                  >
+                    📦 Получено
+                  </button>
+                  <button
+                    className="text-button"
+                    disabled={busy || !selectedInvoices.length}
+                    onClick={() => setSelectedInvoices([])}
+                  >
+                    Снять выбор
+                  </button>
                 </div>
                 {table(filtered)}
                 <div className="table-footer">
