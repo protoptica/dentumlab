@@ -1,3 +1,4 @@
+import { displayVat, vatOptions } from "./vat";
 import UserGuide from "./UserGuide";
 import { applyDiscount, prepareDiscount, basePrice } from "./discount";
 import { loginError } from "./auth-errors";
@@ -2074,27 +2075,15 @@ function InvoiceEditor({
           <label>
             НДС
             <select
-              value={i.vat}
+              value={displayVat(i.vat)}
               disabled={disabled}
               onChange={(e) => patch({ vat: e.target.value })}
             >
-              {Array.from(
-                new Set([
-                  "Не указан",
-                  "Включён в цену",
-                  "Без НДС",
-                  "0%",
-                  "5%",
-                  "7%",
-                  "10%",
-                  "20%",
-                  "22%",
-                  "НДС сверху — включён в строки",
-                  ...(i.vat ? [i.vat] : []),
-                ]),
-              ).map((v) => (
-                <option key={v}>{v}</option>
-              ))}
+              {Array.from(new Set([...vatOptions, displayVat(i.vat)])).map(
+                (v) => (
+                  <option key={v}>{v}</option>
+                ),
+              )}
             </select>
           </label>
         </div>
