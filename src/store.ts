@@ -12,6 +12,7 @@ const url = import.meta.env.VITE_SUPABASE_URL,
   key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const supabase = url && key ? createClient(url, key) : null;
 export const isDemo = !supabase;
+export let canDeleteMaterials = false;
 let cacheKey = "demo",
   labId = "";
 let cacheEpoch = 0;
@@ -58,6 +59,7 @@ export async function cache(
   });
 }
 export async function clearSessionCache() {
+  canDeleteMaterials = false;
   cacheEpoch++;
   const user = cacheKey.split(":")[0];
   localStorage.removeItem(identityKey(user));
@@ -82,7 +84,7 @@ export async function initialize(session: Session | null) {
   }
   const { data, error } = await supabase
     .from("lab_member")
-    .select("lab_id")
+    .select("lab_id,role")
     .eq("user_id", session!.user.id)
     .limit(1)
     .maybeSingle();
@@ -92,6 +94,7 @@ export async function initialize(session: Session | null) {
       "У вашей учётной записи нет доступа к лаборатории. Обратитесь к администратору.",
     );
   labId = data.lab_id;
+  canDeleteMaterials = data.role === "admin";
   localStorage.setItem(identityKey(session!.user.id), labId);
   cacheKey = `${session!.user.id}:${labId}`;
 }
@@ -469,4 +472,16 @@ export async function markInvoices(
   }
   await cache(next);
   return next;
+}
+
+export async function deleteMaterial(m: Material): Promise<Data> {
+  if (!supabase)
+    throw Error("Удаление доступно администратору подключённой лаборатории");
+  const { error } = await supabase.rpc("delete_material", {
+    p_lab: labId,
+    p_id: m.id,
+    p_version: m.version,
+  });
+  if (error) throw Error(error.message);
+  return load();
 }

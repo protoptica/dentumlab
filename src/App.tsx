@@ -1607,6 +1607,23 @@ function App() {
           wide
         >
           <MaterialEditor
+            onDelete={
+              api.canDeleteMaterials
+                ? () => {
+                    if (!window.confirm("Удалить карточку материала?")) return;
+                    void act(async () => {
+                      setData(await api.deleteMaterial(material));
+                      setMaterial(null);
+                      setNotice("Карточка удалена");
+                    });
+                  }
+                : undefined
+            }
+            onOpenInvoice={(invoice) => {
+              setMaterial(null);
+              setError("");
+              setEditing(structuredClone(invoice));
+            }}
             onMove={(target, name, lines, factor) =>
               void act(async () => {
                 setData(
@@ -2443,6 +2460,8 @@ function InvoiceEditor({
   );
 }
 function MaterialEditor({
+  onDelete,
+  onOpenInvoice,
   material,
   data,
   onSave,
@@ -2450,6 +2469,8 @@ function MaterialEditor({
   disabled,
   onMove,
 }: {
+  onDelete?: () => void;
+  onOpenInvoice: (invoice: Invoice) => void;
   onMove: (
     target: string,
     name: string,
@@ -2545,7 +2566,22 @@ function MaterialEditor({
                           />
                           {formatDate(i.date)}
                         </label>
-                        <small>№ {i.number}</small>
+                        <button
+                          type="button"
+                          className="row-link"
+                          onClick={() => {
+                            if (
+                              JSON.stringify(m) !== JSON.stringify(material) &&
+                              !window.confirm(
+                                "Открыть счёт без сохранения изменений материала?",
+                              )
+                            )
+                              return;
+                            onOpenInvoice(i);
+                          }}
+                        >
+                          № {i.number}
+                        </button>
                       </td>
                       <td>
                         {l.name}
@@ -2642,6 +2678,16 @@ function MaterialEditor({
       </div>
       <div className="modal-footer">
         <span className="muted">Изменения попадут в журнал</span>
+        {onDelete && (
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy || disabled}
+            onClick={onDelete}
+          >
+            Удалить карточку
+          </button>
+        )}
         <button className="primary" disabled={busy || disabled}>
           Сохранить карточку
         </button>

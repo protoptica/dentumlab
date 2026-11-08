@@ -29,6 +29,7 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       "013_automatic_retries.sql",
       "014_converted_documents.sql",
       "20261102061156_bulk_flags_and_non_invoices.sql",
+      "20261108172155_reuse_exact_materials.sql",
     ])
       await db.exec(
         (
@@ -726,6 +727,73 @@ test("migrations, RLS, exact money, audit, optimistic locking, queue leases and 
       (await db.query<any>("select archive_non_invoice($1,$2) ok", [rj, token]))
         .rows[0].ok,
       false,
+    );
+
+    await db.exec("reset role");
+    const reusable = crypto.randomUUID();
+    await db.query(
+      "insert into material(id,lab_id,name,unit,pack) values($1,$2,'Exact material','шт.','10.000 шт.')",
+      [reusable, lab],
+    );
+    assert.equal(
+      (
+        await db.query<any>(
+          "select reuse_material($1,$2,'  EXACT  material ','шт.',10) id",
+          [lab, supplier],
+        )
+      ).rows[0].id,
+      reusable,
+    );
+    assert.equal(
+      (
+        await db.query<any>(
+          "select reuse_material($1,$2,'Exact material','шт.',20) id",
+          [lab, supplier],
+        )
+      ).rows[0].id,
+      null,
+    );
+    await db.query(
+      "insert into supplier_material_alias(lab_id,supplier_id,material_id,original_name) values($1,$2,$3,'Vendor exact')",
+      [lab, supplier, reusable],
+    );
+    assert.equal(
+      (
+        await db.query<any>(
+          "select reuse_material($1,$2,'Vendor exact','шт.',10) id",
+          [lab, supplier],
+        )
+      ).rows[0].id,
+      reusable,
+    );
+    await db.exec("set role authenticated");
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
+      other,
+    ]);
+    await assert.rejects(
+      () => db.query("select delete_material($1,$2,1)", [lab, reusable]),
+      /администратору/,
+    );
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
+      user,
+    ]);
+    await assert.rejects(
+      () => db.query("select delete_material($1,$2,99)", [lab, reusable]),
+      /изменена/,
+    );
+    await db.query("select delete_material($1,$2,1)", [lab, reusable]);
+    assert.equal(
+      (await db.query("select id from material where id=$1", [reusable])).rows
+        .length,
+      0,
+    );
+    await assert.rejects(
+      () =>
+        db.query(
+          "select delete_material($1,$2,(select version from material where id=$2))",
+          [lab, mid],
+        ),
+      /перенесите/,
     );
   } finally {
     await db.close();
