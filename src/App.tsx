@@ -2078,12 +2078,21 @@ function InvoiceEditor({
               disabled={disabled}
               onChange={(e) => patch({ vat: e.target.value })}
             >
-              {[
-                "Не указан",
-                "Включён в цену",
-                "Без НДС",
-                "НДС сверху — включён в строки",
-              ].map((v) => (
+              {Array.from(
+                new Set([
+                  "Не указан",
+                  "Включён в цену",
+                  "Без НДС",
+                  "0%",
+                  "5%",
+                  "7%",
+                  "10%",
+                  "20%",
+                  "22%",
+                  "НДС сверху — включён в строки",
+                  ...(i.vat ? [i.vat] : []),
+                ]),
+              ).map((v) => (
                 <option key={v}>{v}</option>
               ))}
             </select>
