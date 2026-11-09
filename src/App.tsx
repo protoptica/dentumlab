@@ -94,6 +94,10 @@ const pluralize = (count: number, one: string, few: string, many: string) => {
   if (last > 1 && last < 5) return few;
   return last === 1 ? one : many;
 };
+const compactDecimal = (value: string) =>
+  value.replace(/([.,]\d*?[1-9])0+$|[.,]0+$/, "$1");
+const displayPack = (value: string) =>
+  value.replace(/^(\d+(?:[.,]\d+)?)(?=\s|$)/, compactDecimal);
 const today = () => new Date().toLocaleDateString("sv-SE");
 const blankLine = (): Line => ({
   id: uid(),
@@ -1213,7 +1217,7 @@ function App() {
                                 </small>
                               </td>
                               <td>{m.category}</td>
-                              <td>{m.pack || "Не указана"}</td>
+                              <td>{displayPack(m.pack) || "Не указана"}</td>
                               <td className="numeric">
                                 {l?.factor
                                   ? `${money(Math.round(l.unit_price / Number(l.factor)))} / ${m.unit}`
@@ -1889,7 +1893,7 @@ function AuditDetails({
             " · " +
             money(l.total) +
             " · фасовка: " +
-            (l.factor || "неизвестна") +
+            compactDecimal(l.factor || "неизвестна") +
             " · материал: " +
             (data.materials.find((m) => m.id === l.material_id)?.name ||
               "не выбран"),
@@ -2263,7 +2267,7 @@ function InvoiceEditor({
                               aria-label="Коэффициент фасовки"
                               placeholder="Неизвестно"
                               inputMode="decimal"
-                              value={l.factor}
+                              value={compactDecimal(l.factor)}
                               disabled={disabled}
                               onChange={(e) =>
                                 update(l.id, { factor: e.target.value })
@@ -2585,7 +2589,7 @@ function MaterialEditor({
               ) : (
                 <input
                   required={key === "name" || key === "unit"}
-                  value={m[key]}
+                  value={key === "pack" ? displayPack(m[key]) : m[key]}
                   disabled={disabled}
                   onChange={(e) => set({ ...m, [key]: e.target.value })}
                 />
@@ -2714,7 +2718,7 @@ function MaterialEditor({
               Суммы закупок сохранятся.{" "}
               {factor && Number(factor) > 0
                 ? "Цена за базовую единицу станет равна цене упаковки / " +
-                  factor
+                  compactDecimal(factor)
                 : "Историческая фасовка сохранится."}
             </p>
             {factor &&
