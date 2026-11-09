@@ -1,3 +1,5 @@
+import CategorySelect from "./CategorySelect";
+import { matchingMaterials } from "./material-matching";
 import { displayVat, vatOptions } from "./vat";
 import UserGuide from "./UserGuide";
 import { applyDiscount, prepareDiscount, basePrice } from "./discount";
@@ -1919,6 +1921,7 @@ function MonthChart({ invoices }: { invoices: Invoice[] }) {
   );
 }
 function CategoryChart({ invoices }: { invoices: Invoice[] }) {
+  const [expanded, setExpanded] = useState(false);
   const map: Record<string, number> = {};
   invoices.forEach((i) => {
     i.lines.forEach(
@@ -1931,6 +1934,7 @@ function CategoryChart({ invoices }: { invoices: Invoice[] }) {
     <div className="category-list">
       {Object.entries(map)
         .sort((a, b) => b[1] - a[1])
+        .slice(0, expanded ? undefined : 6)
         .map(([name, v], n) => (
           <div key={name}>
             <div>
@@ -1966,6 +1970,16 @@ function CategoryChart({ invoices }: { invoices: Invoice[] }) {
             </div>
           </div>
         ))}
+      {Object.keys(map).length > 6 && (
+        <button
+          type="button"
+          className="text-button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Свернуть" : "Развернуть"}
+        </button>
+      )}
       {!all && <p className="muted">Нет подтверждённых закупок за период</p>}
       <small>Суммы строк после скидок. Доставка отдельно.</small>
     </div>
@@ -2181,7 +2195,11 @@ function InvoiceEditor({
                           }}
                         >
                           <option value="">+ Создать новый материал</option>
-                          {data.materials.map((m) => (
+                          {matchingMaterials(
+                            data.materials,
+                            l.name,
+                            l.material_id,
+                          ).map((m) => (
                             <option key={m.id} value={m.id}>
                               {m.name}
                             </option>
@@ -2190,11 +2208,12 @@ function InvoiceEditor({
                         <div className="line-meta">
                           <label>
                             Категория
-                            <input
+                            <CategorySelect
+                              data={data}
                               value={l.category}
                               disabled={disabled}
-                              onChange={(e) =>
-                                update(l.id, { category: e.target.value })
+                              onChange={(category) =>
+                                update(l.id, { category })
                               }
                             />
                           </label>
@@ -2516,12 +2535,21 @@ function MaterialEditor({
           ).map(([key, label]) => (
             <label key={key}>
               {label}
-              <input
-                required={key === "name" || key === "unit"}
-                value={m[key]}
-                disabled={disabled}
-                onChange={(e) => set({ ...m, [key]: e.target.value })}
-              />
+              {key === "category" ? (
+                <CategorySelect
+                  data={data}
+                  value={m.category}
+                  disabled={disabled}
+                  onChange={(category) => set({ ...m, category })}
+                />
+              ) : (
+                <input
+                  required={key === "name" || key === "unit"}
+                  value={m[key]}
+                  disabled={disabled}
+                  onChange={(e) => set({ ...m, [key]: e.target.value })}
+                />
+              )}
             </label>
           ))}
         </div>
