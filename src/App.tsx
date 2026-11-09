@@ -40,6 +40,7 @@ import {
   Data,
   Invoice,
   Material,
+  Supplier,
   Line,
   Status,
   labels,
@@ -49,6 +50,7 @@ import {
   emptyData,
   cents,
   lineTotal,
+  mayHaveSwappedQuantityAndPrice,
   csv,
 } from "./domain";
 import * as api from "./store";
@@ -1601,6 +1603,16 @@ function App() {
           wide
         >
           <InvoiceEditor
+            onAddSupplier={async (name) => {
+              const next = await api.addSupplier(data, name, "");
+              setData(next);
+              const added = next.suppliers.find(
+                (s) => s.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+              );
+              if (!added) throw Error("Не удалось добавить поставщика");
+              setNotice("Поставщик добавлен");
+              return added;
+            }}
             onDecline={() =>
               void act(async () => {
                 setData(await api.declineInvoice(data, editing));
@@ -2032,6 +2044,7 @@ function CategoryChart({ invoices }: { invoices: Invoice[] }) {
 function InvoiceEditor({
   invoice,
   data,
+  onAddSupplier,
   onSave,
   busy,
   disabled,
@@ -2043,6 +2056,7 @@ function InvoiceEditor({
 }: {
   invoice: Invoice;
   data: Data;
+  onAddSupplier: (name: string) => Promise<Supplier>;
   onSave: (i: Invoice, c: boolean) => void;
   busy: boolean;
   disabled: boolean;
@@ -2053,7 +2067,25 @@ function InvoiceEditor({
   originalLoading: boolean;
 }) {
   const [i, set] = useState(() => prepareDiscount(invoice)),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [supplierQuery, setSupplierQuery] = useState(
+      data.suppliers.find((supplier) => supplier.id === invoice.supplier_id)
+        ?.name || "",
+    ),
+    [addingSupplier, setAddingSupplier] = useState(false);
+  const manualEntry = invoice.version === 0;
+  const exactSupplier = data.suppliers.find(
+    (supplier) =>
+      supplier.name.trim().toLocaleLowerCase() ===
+      supplierQuery.trim().toLocaleLowerCase(),
+  );
+  const possibleSwapLines = i.lines.filter(mayHaveSwappedQuantityAndPrice);
+  useEffect(() => {
+    const selected = data.suppliers.find(
+      (supplier) => supplier.id === i.supplier_id,
+    );
+    if (selected) setSupplierQuery(selected.name);
+  }, [data.suppliers, i.supplier_id]);
   const patch = (p: Partial<Invoice>) => {
     let next = { ...i, ...p };
     try {
@@ -2099,7 +2131,9 @@ function InvoiceEditor({
       setError("");
     } catch {
       setError(
-        "Проверьте числовые значения. Количество — до 3 знаков после запятой.",
+        manualEntry
+          ? "Проверьте количество и цену. Для нового счёта количество должно быть целым."
+          : "Проверьте числовые значения. Количество — до 3 знаков после запятой.",
       );
     }
   };
@@ -2107,6 +2141,10 @@ function InvoiceEditor({
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        if (!i.supplier_id) {
+          setError("Выберите поставщика из списка или добавьте нового.");
+          return;
+        }
         onSave(i, true);
       }}
     >
@@ -2133,19 +2171,58 @@ function InvoiceEditor({
           </label>
           <label>
             Поставщик
-            <select
+            <input
               required
-              value={i.supplier_id}
+              list={`suppliers-${i.id}`}
+              autoComplete="off"
+              placeholder="Начните вводить название"
+              maxLength={200}
+              value={supplierQuery}
               disabled={disabled}
-              onChange={(e) => patch({ supplier_id: e.target.value })}
-            >
-              <option value="">Выберите поставщика</option>
+              onChange={(e) => {
+                const value = e.target.value;
+                const match = data.suppliers.find(
+                  (supplier) =>
+                    supplier.name.trim().toLocaleLowerCase() ===
+                    value.trim().toLocaleLowerCase(),
+                );
+                setSupplierQuery(value);
+                patch({ supplier_id: match?.id || "" });
+              }}
+            />
+            <datalist id={`suppliers-${i.id}`}>
               {data.suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
+                <option key={s.id} value={s.name} label={s.inn ? `ИНН ${s.inn}` : undefined} />
               ))}
-            </select>
+            </datalist>
+            {supplierQuery.trim() && !exactSupplier && (
+              <button
+                type="button"
+                className="text-button supplier-add"
+                disabled={disabled || busy || addingSupplier}
+                onClick={() => {
+                  setAddingSupplier(true);
+                  void onAddSupplier(supplierQuery.trim())
+                    .then((supplier) => {
+                      setSupplierQuery(supplier.name);
+                      patch({ supplier_id: supplier.id });
+                      setError("");
+                    })
+                    .catch((e) =>
+                      setError(
+                        e instanceof Error
+                          ? e.message
+                          : "Не удалось добавить поставщика",
+                      ),
+                    )
+                    .finally(() => setAddingSupplier(false));
+                }}
+              >
+                {addingSupplier
+                  ? "Добавляем поставщика…"
+                  : `Добавить «${supplierQuery.trim()}»`}
+              </button>
+            )}
           </label>
           <label>
             НДС
@@ -2162,10 +2239,16 @@ function InvoiceEditor({
             </select>
           </label>
         </div>
-        {!data.suppliers.length && (
-          <p className="error-text">
-            Сначала добавьте поставщика в разделе «Поставщики».
-          </p>
+        {possibleSwapLines.length > 0 && (
+          <div className="review-info" role="alert">
+            <p>
+              Проверьте количество и цену в оригинале: они могли распознаться в
+              обратном порядке.
+            </p>
+            {possibleSwapLines.map((line) => (
+              <small key={line.id}>{line.name}</small>
+            ))}
+          </div>
         )}
         <div className="original-toolbar">
           {i.version > 0 &&
@@ -2304,8 +2387,8 @@ function InvoiceEditor({
                         <input
                           aria-label="Количество"
                           type="number"
-                          min="0.001"
-                          step="0.001"
+                          min={manualEntry ? "1" : "0.001"}
+                          step={manualEntry ? "1" : "0.001"}
                           value={l.quantity}
                           required
                           disabled={disabled}

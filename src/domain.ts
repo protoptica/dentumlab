@@ -123,6 +123,23 @@ export function lineTotal(q: string, p: number): number {
 }
 export const total = (i: Invoice) =>
   i.lines.reduce((s, l) => s + l.total, 0) + i.delivery;
+export function mayHaveSwappedQuantityAndPrice(line: Line): boolean {
+  const factor = Number(line.factor);
+  const quantity = Number(line.quantity);
+  const pack = line.name.match(
+    /(?<![\d.,])([0-9]+(?:[.,][0-9]+)?)\s*(?:шт\.?|штук)(?![а-яa-z])/i,
+  );
+  if (
+    !pack ||
+    !Number.isFinite(factor) ||
+    factor <= 1 ||
+    Number(pack[1].replace(",", ".")) !== factor ||
+    !Number.isFinite(quantity) ||
+    quantity <= factor
+  )
+    return false;
+  return line.unit_price === Math.round(factor * 100);
+}
 export function validateInvoice(i: Invoice) {
   if (!i.number.trim() || !i.date || !i.supplier_id)
     throw Error("Укажите номер, дату и поставщика");

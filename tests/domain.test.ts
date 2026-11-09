@@ -6,6 +6,7 @@ import {
   total,
   validateInvoice,
   csv,
+  mayHaveSwappedQuantityAndPrice,
 } from "../src/domain.ts";
 import { demoData } from "../src/demo.ts";
 test("money and quantity use exact integer rounding", () => {
@@ -25,6 +26,29 @@ test("invoice totals include delivery and reject overpayment", () => {
   i.paid = 0;
   i.lines[0].total++;
   assert.throws(() => validateInvoice(i), /Сумма строки/);
+});
+test("flags a likely quantity and price swap when line amount allows both readings", () => {
+  const line = {
+    id: "line",
+    name: "Implant set, 7 шт",
+    material_id: null,
+    quantity: "990.000",
+    unit: "шт.",
+    unit_price: 700,
+    total: 693000,
+    factor: "7.000",
+    category: "Без категории",
+    page: 1,
+  };
+  assert.equal(mayHaveSwappedQuantityAndPrice(line), true);
+  assert.equal(
+    mayHaveSwappedQuantityAndPrice({
+      ...line,
+      quantity: "7",
+      unit_price: 99000,
+    }),
+    false,
+  );
 });
 test("CSV escapes formula injection and preserves supplier names", () => {
   const d = demoData();
