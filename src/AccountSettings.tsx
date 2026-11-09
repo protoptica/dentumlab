@@ -243,20 +243,28 @@ export default function AccountSettings() {
               const form = e.currentTarget,
                 f = new FormData(form);
               void act(async () => {
-                await call({
+                const result = await call({
                   action: "create",
                   email: String(f.get("email")),
                   password: String(f.get("password")),
                   role: String(f.get("role")),
                 });
                 form.reset();
-                await refresh();
                 setMessage(
-                  "Аккаунт создан. Передайте сотруднику email и пароль; письмо автоматически не отправляется.",
+                  result.mail_status === "sent"
+                    ? "Аккаунт создан. Письмо с адресом сайта, логином и паролем отправлено сотруднику."
+                    : "Аккаунт создан, но письмо не отправлено. Передайте сотруднику email и пароль отдельно. Повторно создавать аккаунт не нужно.",
                 );
+                if (result.audit_recorded === false)
+                  setError("Не удалось записать создание аккаунта в журнал.");
+                await refresh();
               });
             }}
           >
+            <p className="muted">
+              После создания аккаунта на указанный email будет отправлено письмо
+              с адресом сайта, логином и паролем.
+            </p>
             <label>
               Email
               <input

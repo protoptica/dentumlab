@@ -1,4 +1,5 @@
 import { cors, json, userClient } from "../_shared/common.ts";
+import { sendAccountMail } from "../_shared/smtp.ts";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST")
@@ -91,8 +92,20 @@ Deno.serve(async (req) => {
         await db.auth.admin.deleteUser(data.user.id);
         throw Error("Не удалось выдать доступ");
       }
-      await audit("Создан аккаунт", data.user.id, { email, role: b.role });
-      return json({ ok: true });
+      // Account creation has already succeeded. Report subsequent failures separately
+      // so the owner does not try to create the same account again.
+      let auditRecorded = true;
+      try {
+        await audit("Создан аккаунт", data.user.id, { email, role: b.role });
+      } catch {
+        auditRecorded = false;
+      }
+      const mailStatus = await sendAccountMail(email, password);
+      return json({
+        ok: true,
+        mail_status: mailStatus,
+        audit_recorded: auditRecorded,
+      });
     }
     if (!["role", "remove", "password"].includes(b.action))
       return json({ error: "Неизвестное действие" }, 400);
