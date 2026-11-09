@@ -87,6 +87,13 @@ const formatDate = (s: string) =>
     day: "2-digit",
     month: "short",
   });
+const pluralize = (count: number, one: string, few: string, many: string) => {
+  const n = Math.abs(count) % 100;
+  const last = n % 10;
+  if (n > 10 && n < 20) return many;
+  if (last > 1 && last < 5) return few;
+  return last === 1 ? one : many;
+};
 const today = () => new Date().toLocaleDateString("sv-SE");
 const blankLine = (): Line => ({
   id: uid(),
@@ -427,6 +434,7 @@ function App() {
       setNotice("Отмечено счетов: " + selectedVisible.length);
     });
   const confirmed = filtered.filter((i) => i.status === "confirmed");
+  const reviewCount = data.invoices.filter((i) => i.status === "review").length;
   const sum = confirmed.reduce((s, i) => s + total(i), 0),
     paid = confirmed.reduce((s, i) => s + i.paid, 0);
   const table = (rows: Invoice[]) =>
@@ -683,9 +691,7 @@ function App() {
         </a>
         <div className="workspace">
           <span className="workspace-dot" />
-          <div>
-            Учёт закупок<small>Рабочее пространство</small>
-          </div>
+          <div>Учёт закупок</div>
         </div>
         <div className="nav-label">УЧЁТ</div>
         <nav>
@@ -961,7 +967,16 @@ function App() {
                         Подтверждённые закупки <ReceiptText size={17} />
                       </div>
                       <strong>{money(sum)}</strong>
-                      <small>{confirmed.length} счетов за период</small>
+                      <small>
+                        {confirmed.length}{" "}
+                        {pluralize(
+                          confirmed.length,
+                          "счёт",
+                          "счёта",
+                          "счетов",
+                        )}{" "}
+                        за период
+                      </small>
                     </section>
                     <section className="metric">
                       <div>
@@ -976,7 +991,14 @@ function App() {
                       </div>
                       <strong>
                         {confirmed.filter((i) => i.received).length}
-                        <em> / {confirmed.length} счетов</em>
+                        <em>
+                          {` / ${confirmed.length} ${pluralize(
+                            confirmed.length,
+                            "счёт",
+                            "счёта",
+                            "счетов",
+                          )}`}
+                        </em>
                       </strong>
                       <small>По отметкам о получении</small>
                     </section>
@@ -985,11 +1007,11 @@ function App() {
                         Ожидают проверки <ScanLine size={18} />
                       </div>
                       <strong>
-                        {
-                          data.invoices.filter((i) => i.status === "review")
-                            .length
-                        }
-                        <em> счетов</em>
+                        {reviewCount}
+                        <em>
+                          {" "}
+                          {pluralize(reviewCount, "счёт", "счёта", "счетов")}
+                        </em>
                       </strong>
                       <button
                         className="text-button"
@@ -1531,7 +1553,26 @@ function App() {
           }}
         >
           <div className="document-preview">
-            <p>Карточка счёта появится после успешного распознавания.</p>
+            {data.documents.find((d) => d.id === documentPreview.id)?.status ===
+              "error" && (
+              <div className="review-info">
+                <p>Не удалось распознать документ. Заполните счёт вручную.</p>
+                <button
+                  className="primary"
+                  disabled={!online}
+                  onClick={() => {
+                    setError("");
+                    setDocumentPreview(null);
+                    setEditing({
+                      ...blankInvoice(),
+                      document_id: documentPreview.id,
+                    });
+                  }}
+                >
+                  Заполнить вручную
+                </button>
+              </div>
+            )}
             {originalLoading ? (
               <p role="status">Загружаем документ…</p>
             ) : originalUrl ? (
@@ -1981,7 +2022,6 @@ function CategoryChart({ invoices }: { invoices: Invoice[] }) {
         </button>
       )}
       {!all && <p className="muted">Нет подтверждённых закупок за период</p>}
-      <small>Суммы строк после скидок. Доставка отдельно.</small>
     </div>
   );
 }
