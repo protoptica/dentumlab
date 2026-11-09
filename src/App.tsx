@@ -206,6 +206,7 @@ function App() {
     [busy, setBusy] = useState(false),
     [originalUrl, setOriginalUrl] = useState("");
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
+  const [invoicePage, setInvoicePage] = useState(1);
   const [originalLoading, setOriginalLoading] = useState(false);
   const [documentPreview, setDocumentPreview] = useState<{
     id: string;
@@ -370,6 +371,9 @@ function App() {
     window.addEventListener("dentum-update", update);
     return () => window.removeEventListener("dentum-update", update);
   }, []);
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [search, period, supplier, category, status, payment, receipt, sort]);
   const pending =
     data.invoices.filter((i) => i.status === "review").length +
     data.documents.filter((d) => d.status === "error").length;
@@ -422,12 +426,49 @@ function App() {
     .sort((a, b) =>
       sort === "sum" ? total(b) - total(a) : b.date.localeCompare(a.date),
     );
+  const invoicePageSize = 50;
+  const invoicePageCount = Math.ceil(filtered.length / invoicePageSize);
+  const currentInvoicePage = Math.min(
+    invoicePage,
+    Math.max(1, invoicePageCount),
+  );
+  const pageInvoices = filtered.slice(
+    (currentInvoicePage - 1) * invoicePageSize,
+    currentInvoicePage * invoicePageSize,
+  );
   const selectable = filtered.filter(
     (i) => !["archived", "declined"].includes(i.status),
+  );
+  const pageSelectable = pageInvoices.filter(
+    (i) => !["archived", "declined"].includes(i.status),
+  );
+  const pageSelectedVisible = pageSelectable.filter((i) =>
+    selectedInvoices.includes(i.id),
   );
   const selectedVisible = selectable.filter((i) =>
     selectedInvoices.includes(i.id),
   );
+  const paginationItems: (number | "ellipsis")[] = [];
+  if (invoicePageCount > 1) {
+    const visiblePages = [
+      ...new Set(
+        [
+          1,
+          currentInvoicePage - 1,
+          currentInvoicePage,
+          currentInvoicePage + 1,
+          invoicePageCount,
+        ]
+          .filter((number) => number >= 1 && number <= invoicePageCount)
+          .sort((a, b) => a - b),
+      ),
+    ];
+    visiblePages.forEach((number, index) => {
+      if (index > 0 && number - visiblePages[index - 1] > 1)
+        paginationItems.push("ellipsis");
+      paginationItems.push(number);
+    });
+  }
   const markSelected = (field: "paid" | "received") =>
     void act(async () => {
       setData(
@@ -453,17 +494,20 @@ function App() {
                 <th>
                   <input
                     type="checkbox"
-                    aria-label="Выбрать все счета"
-                    disabled={busy || !selectable.length}
+                    aria-label="Выбрать все счета на этой странице"
+                    disabled={busy || !pageSelectable.length}
                     checked={
-                      !!selectable.length &&
-                      selectedVisible.length === selectable.length
+                      !!pageSelectable.length &&
+                      pageSelectedVisible.length === pageSelectable.length
                     }
-                    onChange={(e) =>
-                      setSelectedInvoices(
-                        e.target.checked ? selectable.map((i) => i.id) : [],
-                      )
-                    }
+                    onChange={(e) => {
+                      const pageIds = pageSelectable.map((i) => i.id);
+                      setSelectedInvoices((selected) =>
+                        e.target.checked
+                          ? [...new Set([...selected, ...pageIds])]
+                          : selected.filter((id) => !pageIds.includes(id)),
+                      );
+                    }}
                   />
                 </th>
               )}
@@ -1146,7 +1190,68 @@ function App() {
                     Снять выбор
                   </button>
                 </div>
-                {table(filtered)}
+                {table(pageInvoices)}
+                {invoicePageCount > 1 && (
+                  <nav
+                    className="invoice-pagination"
+                    aria-label="Страницы счетов"
+                  >
+                    <span>
+                      Показаны {(currentInvoicePage - 1) * invoicePageSize + 1}–
+                      {Math.min(
+                        currentInvoicePage * invoicePageSize,
+                        filtered.length,
+                      )}{" "}
+                      из {filtered.length}
+                    </span>
+                    <div>
+                      <button
+                        type="button"
+                        className="secondary"
+                        aria-label="Предыдущая страница счетов"
+                        disabled={currentInvoicePage === 1}
+                        onClick={() => setInvoicePage(currentInvoicePage - 1)}
+                      >
+                        <ChevronLeft size={16} />
+                        Назад
+                      </button>
+                      {paginationItems.map((item, index) =>
+                        item === "ellipsis" ? (
+                          <span key={"ellipsis-" + index} aria-hidden="true">
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            key={item}
+                            className={
+                              item === currentInvoicePage
+                                ? "pagination-current"
+                                : "pagination-number"
+                            }
+                            aria-label={"Страница " + item}
+                            aria-current={
+                              item === currentInvoicePage ? "page" : undefined
+                            }
+                            onClick={() => setInvoicePage(item)}
+                          >
+                            {item}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        type="button"
+                        className="secondary"
+                        aria-label="Следующая страница счетов"
+                        disabled={currentInvoicePage === invoicePageCount}
+                        onClick={() => setInvoicePage(currentInvoicePage + 1)}
+                      >
+                        Далее
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </nav>
+                )}
                 <div className="table-footer">
                   Подтверждено: {money(sum)}{" "}
                   <span>Непроверенные счета не включены в сумму</span>

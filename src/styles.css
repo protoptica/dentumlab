@@ -841,6 +841,35 @@ td small {
   font-size: 10px;
   color: #96a18e;
 }
+.invoice-pagination {
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #87917f;
+  font-size: 11px;
+}
+.invoice-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.invoice-pagination button {
+  min-width: 32px;
+}
+.invoice-pagination .pagination-current,
+.invoice-pagination .pagination-number {
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: transparent;
+  color: #577a58;
+}
+.invoice-pagination .pagination-current {
+  background: #edf2e7;
+  font-weight: 600;
+}
 .inline {
   display: flex;
   align-items: center;
@@ -1667,6 +1696,16 @@ dialog::backdrop {
   .table-footer span {
     display: block;
     margin-top: 6px;
+  }
+  .invoice-pagination {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .invoice-pagination > div {
+    justify-content: center;
+    flex-wrap: wrap;
   }
   .modal-heading {
     padding: 17px;
